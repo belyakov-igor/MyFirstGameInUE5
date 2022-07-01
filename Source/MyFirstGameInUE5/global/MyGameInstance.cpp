@@ -86,7 +86,7 @@ void UMyGameInstance::StopMusic()
 	}
 	musicComponent->Stop();
 	GetTimerManager().ClearTimer(musicTimerHandle);
-	musicComponent->MarkPendingKill();
+	musicComponent->MarkAsGarbage();
 	musicComponent = nullptr;
 }
 

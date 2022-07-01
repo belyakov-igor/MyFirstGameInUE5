@@ -1,6 +1,9 @@
 # Visual Studio 2015 user specific files
 .vs/
 
+# Packaged games
+Windows/
+
 # Compiled Object files
 *.slo
 *.lo
