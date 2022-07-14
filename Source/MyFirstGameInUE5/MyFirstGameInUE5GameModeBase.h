@@ -13,5 +13,7 @@ UCLASS()
 class MYFIRSTGAMEINUE5_API AMyFirstGameInUE5GameModeBase : public AGameModeBase
 {
 	GENERATED_BODY()
-	
+
+public:
+	explicit AMyFirstGameInUE5GameModeBase();
 };
