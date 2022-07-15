@@ -4,6 +4,10 @@
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/TimelineComponent.h"
+#include "Curves/CurveFloat.h"
+#include "Kismet/KismetSystemLibrary.h"
+#include "Math/UnrealMathUtility.h"
 
 // Sets default values
 APlayerCharacterBase::APlayerCharacterBase()
@@ -19,44 +23,34 @@ APlayerCharacterBase::APlayerCharacterBase()
 	CameraComponent->SetupAttachment(SpringArmComponent);
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
-	GetCharacterMovement()->BrakingFrictionFactor = 0.f;
+	GetCharacterMovement()->NavAgentProps.bCanCrouch = false;
 }
 
 // Called when the game starts or when spawned
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	CapsuleUprightHalfHeightBackup = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+	SpringArmSocketOffsetZBackup = SpringArmComponent->SocketOffset.Z;
+	MeshZOffsetFromCapsuleLowestPointBackup = GetMesh()->GetRelativeLocation().Z + GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+
+	SetCapsuleHalfHeight(0.f);
+	SetVelocityAccordingToCrouch(0.f);
 }
 
 void APlayerCharacterBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	if (APlayerController* PlayerController = Cast<APlayerController>(NewController); PlayerController != nullptr)
-	{
-		if (APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager; PlayerCameraManager != nullptr)
-		{
-			MinCameraPitchBackup = PlayerCameraManager->ViewPitchMin;
-			MaxCameraPitchBackup = PlayerCameraManager->ViewPitchMax;
-
-			PlayerCameraManager->ViewPitchMin = MinCameraPitch;
-			PlayerCameraManager->ViewPitchMax = MaxCameraPitch;
-		}
-	}
+	UseUprightCameraPitch(NewController, true);
 }
 
 void APlayerCharacterBase::UnPossessed()
 {
 	Super::UnPossessed();
 
-	if (APlayerController* PlayerController = Cast<APlayerController>(Controller); PlayerController != nullptr)
-	{
-		if (APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager; PlayerCameraManager != nullptr)
-		{
-			PlayerCameraManager->ViewPitchMin = MinCameraPitchBackup;
-			PlayerCameraManager->ViewPitchMax = MaxCameraPitchBackup;
-		}
-	}
+	RestoreBackupCameraPitch();
 }
 
 // Called every frame
@@ -64,9 +58,10 @@ void APlayerCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	auto Velocity = GetVelocity();
-	Acceleration = (Velocity - PreviousVelocity) / DeltaTime;
-	PreviousVelocity = Velocity;
+	CrouchIfPossible();
+	RunIfPossible();
+	UpdateUprightToCrouchSmoothCameraAndCapsuleTransition(DeltaTime);
+	StandUprightIfPossible();
 }
 
 // Called to bind functionality to input
@@ -79,38 +74,36 @@ void APlayerCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAxis("LookUp", this, &APlayerCharacterBase::LookUp);
 	PlayerInputComponent->BindAxis("LookRight", this, &APlayerCharacterBase::LookRight);
 
-	PlayerInputComponent->BindAction("Croach", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnCroachButtonPressed);
-	PlayerInputComponent->BindAction("Croach", EInputEvent::IE_Released, this, &APlayerCharacterBase::OnCroachButtonReleased);
+	PlayerInputComponent->BindAction("Crouch", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnCrouchButtonPressed);
+	PlayerInputComponent->BindAction("Crouch", EInputEvent::IE_Released, this, &APlayerCharacterBase::OnCrouchButtonReleased);
 	PlayerInputComponent->BindAction("Run", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnRunButtonPressed);
 	PlayerInputComponent->BindAction("Run", EInputEvent::IE_Released, this, &APlayerCharacterBase::OnRunButtonReleased);
-	PlayerInputComponent->BindAction("Jump", EInputEvent::IE_Pressed, this, &ACharacter::Jump);
-
-	GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
+	PlayerInputComponent->BindAction("Jump", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnJumpButtonPressed);
 }
 
 bool APlayerCharacterBase::IsRunning() const
 {
-	return bWantsToRun && GetCharacterMovement()->Velocity.SquaredLength() > 2500;
+	return bIsRunning;
 }
 
-bool APlayerCharacterBase::IsCroaching() const
+bool APlayerCharacterBase::IsInCrouchState() const
 {
-	return bWantsToCroach;
+	return CrouchCoef > 0.f;
 }
 
-bool APlayerCharacterBase::HasAnyMovementInput() const
+float APlayerCharacterBase::GetForwardMovementInput() const
 {
-	return HasMoveForwardInput || HasMoveRightInput;
+	return FVector::DotProduct(GetLastMovementInputVector(), GetCapsuleComponent()->GetForwardVector());
 }
 
-FVector APlayerCharacterBase::GetAcceleration() const
+float APlayerCharacterBase::GetRightMovementInput() const
 {
-	return Acceleration;
+	return FVector::DotProduct(GetLastMovementInputVector(), GetCapsuleComponent()->GetRightVector());
 }
 
-float APlayerCharacterBase::GetBackwardAcceleration() const
+float APlayerCharacterBase::GetCrouchCoef() const
 {
-	return -FVector::DotProduct(Acceleration, GetCapsuleComponent()->GetForwardVector());
+	return CrouchCoef;
 }
 
 void APlayerCharacterBase::MoveForward(float Amount)
@@ -119,13 +112,11 @@ void APlayerCharacterBase::MoveForward(float Amount)
 	dir.Z = 0;
 	dir.Normalize();
 	AddMovementInput(dir, Amount);
-	HasMoveForwardInput = Amount != 0.f;
 }
 
 void APlayerCharacterBase::MoveRight(float Amount)
 {
 	AddMovementInput(CameraComponent->GetRightVector(), Amount);
-	HasMoveRightInput = Amount != 0.f;
 }
 
 void APlayerCharacterBase::LookUp(float Amount)
@@ -138,27 +129,215 @@ void APlayerCharacterBase::LookRight(float Amount)
 	AddControllerYawInput(Amount);
 }
 
-void APlayerCharacterBase::OnCroachButtonPressed()
+void APlayerCharacterBase::OnCrouchButtonPressed()
 {
-	if (!bWantsToRun) bWantsToCroach = true;
+	bWantsToCrouch = true;
 }
 
-void APlayerCharacterBase::OnCroachButtonReleased()
+void APlayerCharacterBase::OnCrouchButtonReleased()
 {
-	bWantsToCroach = false;
+	bWantsToCrouch = false;
 }
 
 void APlayerCharacterBase::OnRunButtonPressed()
 {
-	if (!bWantsToCroach)
-	{
-		bWantsToRun = true;
-		GetCharacterMovement()->MaxWalkSpeed = RunSpeedCoef * JogSpeed;
-	}
+	bWantsToRun = true;
 }
 
 void APlayerCharacterBase::OnRunButtonReleased()
 {
 	bWantsToRun = false;
-	GetCharacterMovement()->MaxWalkSpeed = JogSpeed;
+}
+
+void APlayerCharacterBase::OnJumpButtonPressed()
+{
+	if (!IsInCrouchState())
+	{
+		Jump();
+	}
+}
+
+void APlayerCharacterBase::CrouchIfPossible()
+{
+	bool previous = bIsCrouching;
+	bIsCrouching = bWantsToCrouch && !IsRunning() && !GetCharacterMovement()->IsFalling();
+	if (bIsCrouching != previous)
+	{
+		if (bIsCrouching) ToCrouchState();
+		else ToUprightState();
+	}
+}
+
+void APlayerCharacterBase::RunIfPossible()
+{
+	bool previous = bIsRunning;
+	bIsRunning = bWantsToRun && !IsInCrouchState() && !GetCharacterMovement()->IsFalling() && GetCharacterMovement()->Velocity.SquaredLength() > 2500;
+	if (bIsRunning != previous)
+	{
+		GetCharacterMovement()->MaxWalkSpeed = bIsRunning ? RunSpeedCoef * DefaultJogSpeed : DefaultJogSpeed;
+	}
+}
+
+void APlayerCharacterBase::RestoreBackupCameraPitch()
+{
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller); PlayerController != nullptr)
+	{
+		if (APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager; PlayerCameraManager != nullptr)
+		{
+			PlayerCameraManager->ViewPitchMin = MinCameraPitchBackup;
+			PlayerCameraManager->ViewPitchMax = MaxCameraPitchBackup;
+		}
+	}
+}
+
+void APlayerCharacterBase::UseUprightCameraPitch(AController* Controller_, bool bMakeBackup)
+{
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller_); PlayerController != nullptr)
+	{
+		if (APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager; PlayerCameraManager != nullptr)
+		{
+			if (bMakeBackup)
+			{
+				MinCameraPitchBackup = PlayerCameraManager->ViewPitchMin;
+				MaxCameraPitchBackup = PlayerCameraManager->ViewPitchMax;
+			}
+
+			PlayerCameraManager->ViewPitchMin = MinCameraPitch;
+			PlayerCameraManager->ViewPitchMax = MaxCameraPitch;
+		}
+	}
+}
+
+void APlayerCharacterBase::UseCrouchCameraPitch(float coef)
+{
+	if (APlayerController* PlayerController = Cast<APlayerController>(Controller); PlayerController != nullptr)
+	{
+		if (APlayerCameraManager* PlayerCameraManager = PlayerController->PlayerCameraManager; PlayerCameraManager != nullptr)
+		{
+			PlayerCameraManager->ViewPitchMin = FMath::Lerp(MinCameraPitch, MinCameraPitchCrouched, coef);
+			PlayerCameraManager->ViewPitchMax = FMath::Lerp(MaxCameraPitch, MaxCameraPitchCrouched, coef);
+		}
+	}
+}
+
+void APlayerCharacterBase::SetSpringArmRelativeZ(float coef)
+{
+	SpringArmComponent->SocketOffset.Z = SpringArmSocketOffsetZBackup + FMath::Lerp(0, SpringArmCrouchSocketOffsetZOffset, coef);
+}
+
+void APlayerCharacterBase::SetCapsuleHalfHeight(float coef)
+{
+	float HalfHeight = FMath::Lerp(CapsuleUprightHalfHeightBackup, CapsuleCrouchHalfHeight, coef);
+	GetCapsuleComponent()->SetCapsuleHalfHeight(HalfHeight);
+	auto location = GetMesh()->GetRelativeLocation();
+	location.Z = -HalfHeight + MeshZOffsetFromCapsuleLowestPointBackup;
+	GetMesh()->SetRelativeLocation(location);
+}
+
+void APlayerCharacterBase::SetVelocityAccordingToCrouch(float coef)
+{
+	GetCharacterMovement()->MaxWalkSpeed = FMath::Lerp(1, CrouchVelocityCoef, coef) * DefaultJogSpeed;
+}
+
+void APlayerCharacterBase::UpdateUprightToCrouchSmoothCameraAndCapsuleTransition(float DeltaTime)
+{
+	static constexpr auto CubicCurve =
+		[](float t)
+		{
+			float ret = -2*t*t*t + 3*t*t;
+			return ret;
+		}
+	;
+
+	if (CrouchSequenceType == ECrouchSequenceType::NONE)
+	{
+		return;
+	}
+
+	TimeInTransition += DeltaTime;
+	float t = CubicCurve(FMath::Clamp(TimeInTransition / TransitionTime, 0.f, 1.f));
+	float a = static_cast<int>(CrouchSequenceType);
+
+	CrouchCoef = a * t + 0.5 * (1 - a);
+
+	SetSpringArmRelativeZ(CrouchCoef);
+	SetCapsuleHalfHeight(CrouchCoef);
+	SetVelocityAccordingToCrouch(CrouchCoef);
+	UseCrouchCameraPitch(CrouchCoef);
+
+	if (TimeInTransition >= TransitionTime)
+	{
+		TimeInTransition = 0.f;
+		if (CrouchSequenceType == ECrouchSequenceType::CROUCH_TO_UPRIGHT)
+		{
+			CrouchCoef = 0.f;
+			bWantsToStandUpright = false;
+			UseUprightCameraPitch(Controller, false);
+		}
+		CrouchSequenceType = ECrouchSequenceType::NONE;
+	}
+}
+
+void APlayerCharacterBase::ToCrouchState()
+{
+	bWantsToStandUpright = false;
+	if (CrouchSequenceType == ECrouchSequenceType::CROUCH_TO_UPRIGHT)
+	{
+		TimeInTransition = TransitionTime - TimeInTransition;
+	}
+	CrouchSequenceType = ECrouchSequenceType::UPRIGHT_TO_CROUCH;
+}
+
+void APlayerCharacterBase::ToUprightState()
+{
+	bWantsToStandUpright = true;
+	if (!IsInCrouchState() || !CanStandUpright())
+	{
+		return;
+	}
+	if (CrouchSequenceType == ECrouchSequenceType::UPRIGHT_TO_CROUCH)
+	{
+		TimeInTransition = TransitionTime - TimeInTransition;
+	}
+	CrouchSequenceType = ECrouchSequenceType::CROUCH_TO_UPRIGHT;
+}
+
+bool APlayerCharacterBase::CanStandUpright() const
+{
+	if (!IsInCrouchState())
+	{
+		return true;
+	}
+	auto R = GetCapsuleComponent()->GetUnscaledCapsuleRadius();
+	auto HalfHeightCylinder = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight_WithoutHemisphere();
+	auto P1 = GetCapsuleComponent()->GetComponentLocation();
+	P1.Z += HalfHeightCylinder;
+	auto L = 2 * (CapsuleUprightHalfHeightBackup - R - HalfHeightCylinder);
+	auto P2 = P1 + GetCapsuleComponent()->GetUpVector() * L;
+	FHitResult Result;
+	auto bHit = UKismetSystemLibrary::SphereTraceSingle
+	(
+		/* WorldContextObject */ GetWorld()
+		, /* Start */ P1
+		, /* End */ P2
+		, /* Radius */ R
+		, /* TraceChannel */ UEngineTypes::ConvertToTraceType(ECC_WorldStatic)
+		, /* bTraceComplex */ false
+		, /* ActorsToIgnore */ TArray<AActor*>{GetCapsuleComponent()->GetOwner()}
+		, /* DrawDebugType */ EDrawDebugTrace::Type::None //ForOneFrame
+		, /* OutHit */ Result
+		, /* bIgnoreSelf */ true
+		, /* TraceColor */ FLinearColor(0.0f, 1.0f, 0.0f)
+		, /* TraceHitColor */ FLinearColor(1.0f, 0.0f, 0.0f)
+		, /* DrawTime */ 0.1f
+	);
+	return !bHit;
+}
+
+void APlayerCharacterBase::StandUprightIfPossible()
+{
+	if (IsInCrouchState() && bWantsToStandUpright && CanStandUpright())
+	{
+		CrouchSequenceType = ECrouchSequenceType::CROUCH_TO_UPRIGHT;
+	}
 }
