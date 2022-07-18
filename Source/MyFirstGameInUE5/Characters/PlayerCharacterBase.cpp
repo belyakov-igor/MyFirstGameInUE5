@@ -1,5 +1,8 @@
 #include "PlayerCharacterBase.h"
 
+#include "Components/ClampedIntegerComponent.h"
+
+#include "Components/TextRenderComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -9,11 +12,14 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Math/UnrealMathUtility.h"
 
+DEFINE_LOG_CATEGORY_STATIC(PlayerCharacterBase, All, All);
+
 // Sets default values
 APlayerCharacterBase::APlayerCharacterBase()
 {
- 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
+
+	HealthComponent = CreateDefaultSubobject<UClampedIntegerComponent>("HealthComponent");
 
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>("SpringArmComponent");
 	SpringArmComponent->SetupAttachment(RootComponent);
@@ -21,6 +27,11 @@ APlayerCharacterBase::APlayerCharacterBase()
 
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>("CameraComponent");
 	CameraComponent->SetupAttachment(SpringArmComponent);
+
+	HealthTextComponent = CreateDefaultSubobject<UTextRenderComponent>("HealthTextComponent");
+	HealthTextComponent->SetupAttachment(CameraComponent);
+
+	check(GetCharacterMovement() != nullptr);
 
 	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = false;
@@ -30,6 +41,16 @@ APlayerCharacterBase::APlayerCharacterBase()
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	OnTakeAnyDamage.AddDynamic(this, &APlayerCharacterBase::TakeAnyDamage);
+	HealthComponent->ReachedMin.AddUObject(this, &APlayerCharacterBase::Die);
+	HealthComponent->ValueChanged.AddLambda(
+		[this](float NewHealth)
+		{
+			HealthTextComponent->SetText(FText::FromString(FString::Printf(TEXT("%.0f"), NewHealth)));
+		}
+	);
+	HealthComponent->SetValue(HealthComponent->Max);
 
 	CapsuleUprightHalfHeightBackup = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
 	SpringArmSocketOffsetZBackup = SpringArmComponent->SocketOffset.Z;
@@ -43,7 +64,10 @@ void APlayerCharacterBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	UseUprightCameraPitch(NewController, true);
+	if (NewController != nullptr)
+	{
+		UseUprightCameraPitch(NewController, true);
+	}
 }
 
 void APlayerCharacterBase::UnPossessed()
@@ -68,6 +92,8 @@ void APlayerCharacterBase::Tick(float DeltaTime)
 void APlayerCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 {
 	Super::SetupPlayerInputComponent(PlayerInputComponent);
+
+	check(PlayerInputComponent != nullptr);
 
 	PlayerInputComponent->BindAxis("MoveForward", this, &APlayerCharacterBase::MoveForward);
 	PlayerInputComponent->BindAxis("MoveRight", this, &APlayerCharacterBase::MoveRight);
@@ -340,4 +366,38 @@ void APlayerCharacterBase::StandUprightIfPossible()
 	{
 		CrouchSequenceType = ECrouchSequenceType::CROUCH_TO_UPRIGHT;
 	}
+}
+
+void APlayerCharacterBase::Landed(const FHitResult& Hit)
+{
+	auto VelocityZ = -GetVelocity().Z;
+	if (VelocityZ < LandingVelocityDamageRange.X)
+	{
+		return;
+	}
+
+	TakeDamage(
+		FMath::GetMappedRangeValueClamped(LandingVelocityDamageRange, LandingDamageRange, VelocityZ)
+		, FDamageEvent{}
+		, nullptr
+		, nullptr
+	);
+}
+
+void APlayerCharacterBase::TakeAnyDamage(
+	AActor* DamagedActor
+	, float Damage
+	, const class UDamageType* DamageType
+	, class AController* InstigatedBy
+	, AActor* DamageCauser
+)
+{
+	HealthComponent->Decrease(static_cast<int32>(Damage));
+	UE_LOG(PlayerCharacterBase, Display, TEXT("Damage taken: %d, Health: %d"), static_cast<int32>(Damage), HealthComponent->GetValue());
+}
+
+void APlayerCharacterBase::Die()
+{
+	PlayAnimMontage(DeathAnimMontage);
+	GetCharacterMovement()->DisableMovement();
 }

@@ -36,6 +36,12 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	class UCameraComponent* CameraComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	class UClampedIntegerComponent* HealthComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	class UTextRenderComponent* HealthTextComponent;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion", meta = (ClampMin = 1.2f, ClampMax = 4.f))
 	float RunSpeedCoef = 1.5f;
 
@@ -56,6 +62,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion", meta = (ClampMin = 0.f, ClampMax = 3.f))
 	float TransitionTime = 0.5f;
 
+    UPROPERTY(EditDefaultsOnly, Category = "Animation")
+    class UAnimMontage* DeathAnimMontage;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
+	FVector2D LandingVelocityDamageRange{900.f, 1500.f};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
+	FVector2D LandingDamageRange{10.f, 100.f};
+
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	bool IsRunning() const;
@@ -73,7 +88,21 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	float GetCrouchCoef() const;
 
+	virtual void Landed(const FHitResult& Hit) override;
+
 private:
+
+// Damage {
+	UFUNCTION()
+	void TakeAnyDamage(
+		AActor* DamagedActor
+		, float Damage
+		, const class UDamageType* DamageType
+		, class AController* InstigatedBy
+		, AActor* DamageCauser
+	);
+	void Die();
+// } Damage
 
 // Action and axis mappings {
 	void MoveForward(float Amount);
