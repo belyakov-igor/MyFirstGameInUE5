@@ -40,6 +40,9 @@ public:
 	class UClampedIntegerComponent* HealthComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	class UWeaponManagerComponent* WeaponManagerComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	class UTextRenderComponent* HealthTextComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion", meta = (ClampMin = 1.2f, ClampMax = 4.f))
@@ -87,6 +90,20 @@ public:
 	// result in range [0, 1]. 0 is upright, 1 is crouch
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	float GetCrouchCoef() const;
+
+	
+
+// SmoothlyOrientSelfToWorldYawValue facilities {
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion")
+	float InterpSpeedToSmoothlyOrientSelf = 5.f;
+
+	UFUNCTION(BlueprintCallable, Category = "Locomotion")
+	void SmoothlyOrientSelfToWorldYawValue(float WorldYawValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Locomotion")
+	void StopSmoothlyOrientSelfToWorldYawValue();
+// } SmoothlyOrientSelfToWorldYawValue facilities
+
 
 	virtual void Landed(const FHitResult& Hit) override;
 
@@ -172,5 +189,17 @@ private:
 	bool CanStandUpright() const;
 	void StandUprightIfPossible();
 // } Upright to crouch switch
+
+// Attack {
+	void BeginAttack();
+	void EndAttack();
+// } Attack
+
+// SmoothlyOrientSelfToWorldYawValue facilities {
+	void RotateSelfIfNeeded(float DeltaTime);
+
+	bool bSmoothlyOrientSelf_Required = false;
+	float SmoothlyOrientSelf_WorldYawValue = 0.f;
+// { SmoothlyOrientSelfToWorldYawValue facilities
 
 };

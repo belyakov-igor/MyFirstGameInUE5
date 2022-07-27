@@ -1,15 +1,15 @@
 #include "PlayerCharacterBase.h"
 
-#include "Components/ClampedIntegerComponent.h"
+#include "Utilities/Components/ClampedIntegerComponent.h"
+#include "Weapons/Components/WeaponManagerComponent.h"
 
 #include "Components/TextRenderComponent.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Components/CapsuleComponent.h"
-#include "Components/TimelineComponent.h"
-#include "Curves/CurveFloat.h"
 #include "Kismet/KismetSystemLibrary.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "Math/UnrealMathUtility.h"
 
 DEFINE_LOG_CATEGORY_STATIC(PlayerCharacterBase, All, All);
@@ -20,6 +20,7 @@ APlayerCharacterBase::APlayerCharacterBase()
 	PrimaryActorTick.bCanEverTick = true;
 
 	HealthComponent = CreateDefaultSubobject<UClampedIntegerComponent>("HealthComponent");
+	WeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>("WeaponManagerComponent");
 
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>("SpringArmComponent");
 	SpringArmComponent->SetupAttachment(RootComponent);
@@ -86,6 +87,7 @@ void APlayerCharacterBase::Tick(float DeltaTime)
 	RunIfPossible();
 	UpdateUprightToCrouchSmoothCameraAndCapsuleTransition(DeltaTime);
 	StandUprightIfPossible();
+	RotateSelfIfNeeded(DeltaTime);
 }
 
 // Called to bind functionality to input
@@ -105,6 +107,8 @@ void APlayerCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAction("Run", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnRunButtonPressed);
 	PlayerInputComponent->BindAction("Run", EInputEvent::IE_Released, this, &APlayerCharacterBase::OnRunButtonReleased);
 	PlayerInputComponent->BindAction("Jump", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnJumpButtonPressed);
+	PlayerInputComponent->BindAction("Attack", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::BeginAttack);
+	PlayerInputComponent->BindAction("Attack", EInputEvent::IE_Released, this, &APlayerCharacterBase::EndAttack);
 }
 
 bool APlayerCharacterBase::IsRunning() const
@@ -197,7 +201,13 @@ void APlayerCharacterBase::CrouchIfPossible()
 void APlayerCharacterBase::RunIfPossible()
 {
 	bool previous = bIsRunning;
-	bIsRunning = bWantsToRun && !IsInCrouchState() && !GetCharacterMovement()->IsFalling() && GetCharacterMovement()->Velocity.SquaredLength() > 2500;
+	bIsRunning =
+		bWantsToRun
+		&& !IsInCrouchState()
+		&& !GetCharacterMovement()->IsFalling()
+		&& GetCharacterMovement()->Velocity.SquaredLength() > 2500
+		&& !WeaponManagerComponent->AttackIsBeingPerformed()
+	;
 	if (bIsRunning != previous)
 	{
 		GetCharacterMovement()->MaxWalkSpeed = bIsRunning ? RunSpeedCoef * DefaultJogSpeed : DefaultJogSpeed;
@@ -368,6 +378,22 @@ void APlayerCharacterBase::StandUprightIfPossible()
 	}
 }
 
+void APlayerCharacterBase::BeginAttack()
+{
+	if (!bIsRunning && !GetCharacterMovement()->IsFalling())
+	{
+		WeaponManagerComponent->BeginAttack();
+	}
+}
+
+void APlayerCharacterBase::EndAttack()
+{
+	if (!bIsRunning && !GetCharacterMovement()->IsFalling())
+	{
+		WeaponManagerComponent->EndAttack();
+	}
+}
+
 void APlayerCharacterBase::Landed(const FHitResult& Hit)
 {
 	auto VelocityZ = -GetVelocity().Z;
@@ -400,4 +426,35 @@ void APlayerCharacterBase::Die()
 {
 	PlayAnimMontage(DeathAnimMontage);
 	GetCharacterMovement()->DisableMovement();
+	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
+	WeaponManagerComponent->EndAttack();
+}
+
+void APlayerCharacterBase::RotateSelfIfNeeded(float DeltaTime)
+{
+	if (!bSmoothlyOrientSelf_Required)
+	{
+		return;
+	}
+	auto CurrentRotation = GetActorRotation();
+	auto TargetRotation = FRotator(CurrentRotation.Pitch, SmoothlyOrientSelf_WorldYawValue, CurrentRotation.Roll);
+	auto ResultRotation = FMath::RInterpTo(
+		CurrentRotation, TargetRotation, DeltaTime, InterpSpeedToSmoothlyOrientSelf
+	);
+	SetActorRotation(ResultRotation);
+	if (FMath::IsNearlyZero(GetActorRotation().Yaw - SmoothlyOrientSelf_WorldYawValue, 0.01))
+	{
+		StopSmoothlyOrientSelfToWorldYawValue();
+	}
+}
+
+void APlayerCharacterBase::SmoothlyOrientSelfToWorldYawValue(float WorldYawValue)
+{
+	bSmoothlyOrientSelf_Required = true;
+	SmoothlyOrientSelf_WorldYawValue = WorldYawValue;
+}
+
+void APlayerCharacterBase::StopSmoothlyOrientSelfToWorldYawValue()
+{
+	bSmoothlyOrientSelf_Required = false;
 }

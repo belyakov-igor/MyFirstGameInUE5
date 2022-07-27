@@ -12,7 +12,14 @@ public class MyFirstGameInUE5 : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 
-		PublicIncludePaths.AddRange( new string[] { "MyFirstGameInUE5" } );
+		PublicIncludePaths.AddRange( new string[] {
+			"MyFirstGameInUE5"
+			, "MyFirstGameInUE5/Weapons/Components"
+			, "MyFirstGameInUE5/Weapons/Actors"
+			, "MyFirstGameInUE5/Utilities/Components"
+			, "MyFirstGameInUE5/Global"
+			, "MyFirstGameInUE5/Characters"
+		});
 
 		// Uncomment if you are using Slate UI
 		// PrivateDependencyModuleNames.AddRange(new string[] { "Slate", "SlateCore" });
