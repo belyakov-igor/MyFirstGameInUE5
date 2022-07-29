@@ -20,7 +20,10 @@ APlayerCharacterBase::APlayerCharacterBase()
 	PrimaryActorTick.bCanEverTick = true;
 
 	HealthComponent = CreateDefaultSubobject<UClampedIntegerComponent>("HealthComponent");
-	WeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>("WeaponManagerComponent");
+	MeleeWeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>("MeleeWeaponManagerComponent");
+	MeleeWeaponManagerComponent->OnAttackFinished.BindUObject(this, &APlayerCharacterBase::OnMeleeAttackFinished);
+	RangedWeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>("RangedWeaponManagerComponent");
+	RangedWeaponManagerComponent->OnAttackFinished.BindUObject(this, &APlayerCharacterBase::OnRangedAttackFinished);
 
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>("SpringArmComponent");
 	SpringArmComponent->SetupAttachment(RootComponent);
@@ -34,14 +37,19 @@ APlayerCharacterBase::APlayerCharacterBase()
 
 	check(GetCharacterMovement() != nullptr);
 
-	GetCharacterMovement()->bOrientRotationToMovement = true;
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = false;
+
+	SetState(State_UprightNotRunning);
+	SetAimState(State_Aim_NoAim);
 }
 
 // Called when the game starts or when spawned
 void APlayerCharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
+
+	check(State != nullptr);
+	check(AimState != nullptr);
 
 	OnTakeAnyDamage.AddDynamic(this, &APlayerCharacterBase::TakeAnyDamage);
 	HealthComponent->ReachedMin.AddUObject(this, &APlayerCharacterBase::Die);
@@ -53,12 +61,38 @@ void APlayerCharacterBase::BeginPlay()
 	);
 	HealthComponent->SetValue(HealthComponent->Max);
 
+
 	CapsuleUprightHalfHeightBackup = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
 	SpringArmSocketOffsetZBackup = SpringArmComponent->SocketOffset.Z;
 	MeshZOffsetFromCapsuleLowestPointBackup = GetMesh()->GetRelativeLocation().Z + GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
+	FovBackup = CameraComponent->FieldOfView;
 
-	SetCapsuleHalfHeight(0.f);
-	SetVelocityAccordingToCrouch(0.f);
+	UprightToCrouchUpdater.TransitionTime = UprightToCrouchTransitionTime;
+	UprightToCrouchUpdater.Callback =
+		[this](float Coef)
+		{
+			CrouchCoef = Coef;
+			SetSpringArmRelativeZ(Coef);
+			SetVelocityAccordingToCrouch(Coef);
+			UseCrouchCameraPitch(Coef);
+		}
+	;
+	UprightToCrouchUpdater.Callback(0.f);
+
+
+	SpringArmSocketOffsetXYBackup.X = SpringArmComponent->SocketOffset.X;
+	SpringArmSocketOffsetXYBackup.Y = SpringArmComponent->SocketOffset.Y;
+	
+	AimToNoAimUpdater.TransitionTime = AimToNoAimTransitionTime;
+	AimToNoAimUpdater.Callback =
+		[this](float Coef)
+		{
+			SetSpringArmRelativeXY(Coef);
+			SetAimRotation(Coef);
+			SetFov(Coef);
+		}
+	;
+	AimToNoAimUpdater.Callback(0.f);
 }
 
 void APlayerCharacterBase::PossessedBy(AController* NewController)
@@ -83,10 +117,9 @@ void APlayerCharacterBase::Tick(float DeltaTime)
 {
 	Super::Tick(DeltaTime);
 
-	CrouchIfPossible();
-	RunIfPossible();
-	UpdateUprightToCrouchSmoothCameraAndCapsuleTransition(DeltaTime);
-	StandUprightIfPossible();
+	State->Tick(DeltaTime);
+	AimState->Tick(DeltaTime);
+
 	RotateSelfIfNeeded(DeltaTime);
 }
 
@@ -109,16 +142,18 @@ void APlayerCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAction("Jump", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnJumpButtonPressed);
 	PlayerInputComponent->BindAction("Attack", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::BeginAttack);
 	PlayerInputComponent->BindAction("Attack", EInputEvent::IE_Released, this, &APlayerCharacterBase::EndAttack);
+	PlayerInputComponent->BindAction("Aim", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::BeginAim);
+	PlayerInputComponent->BindAction("Aim", EInputEvent::IE_Released, this, &APlayerCharacterBase::EndAim);
 }
 
-bool APlayerCharacterBase::IsRunning() const
+bool APlayerCharacterBase::IsInRunState() const
 {
-	return bIsRunning;
+	return State == &State_UprightRunning;
 }
 
 bool APlayerCharacterBase::IsInCrouchState() const
 {
-	return CrouchCoef > 0.f;
+	return State == &State_Crouch;
 }
 
 float APlayerCharacterBase::GetForwardMovementInput() const
@@ -136,6 +171,16 @@ float APlayerCharacterBase::GetCrouchCoef() const
 	return CrouchCoef;
 }
 
+bool APlayerCharacterBase::AttackIsBeingPerformed() const
+{
+	return MeleeWeaponManagerComponent->AttackIsBeingPerformed() || RangedWeaponManagerComponent->AttackIsBeingPerformed();
+}
+
+bool APlayerCharacterBase::IsInNoAimingState() const
+{
+	return AimState == &State_Aim_NoAim;
+}
+
 void APlayerCharacterBase::MoveForward(float Amount)
 {
 	auto dir = CameraComponent->GetForwardVector();
@@ -151,68 +196,248 @@ void APlayerCharacterBase::MoveRight(float Amount)
 
 void APlayerCharacterBase::LookUp(float Amount)
 {
-	AddControllerPitchInput(Amount);
+	AddControllerPitchInput(Amount*AimMouseSensitivityCoef);
 }
 
 void APlayerCharacterBase::LookRight(float Amount)
 {
-	AddControllerYawInput(Amount);
+	AddControllerYawInput(Amount*AimMouseSensitivityCoef);
 }
 
 void APlayerCharacterBase::OnCrouchButtonPressed()
 {
-	bWantsToCrouch = true;
+	Cravings.bWantsToCrouch = true;
 }
 
 void APlayerCharacterBase::OnCrouchButtonReleased()
 {
-	bWantsToCrouch = false;
+	Cravings.bWantsToCrouch = false;
 }
 
 void APlayerCharacterBase::OnRunButtonPressed()
 {
-	bWantsToRun = true;
+	Cravings.bWantsToRun = true;
 }
 
 void APlayerCharacterBase::OnRunButtonReleased()
 {
-	bWantsToRun = false;
+	Cravings.bWantsToRun = false;
 }
 
 void APlayerCharacterBase::OnJumpButtonPressed()
 {
-	if (!IsInCrouchState())
+	if (State != &State_Crouch)
 	{
 		Jump();
 	}
 }
 
-void APlayerCharacterBase::CrouchIfPossible()
+bool APlayerCharacterBase::RunningIsPossible() const
 {
-	bool previous = bIsCrouching;
-	bIsCrouching = bWantsToCrouch && !IsRunning() && !GetCharacterMovement()->IsFalling();
-	if (bIsCrouching != previous)
+	return
+		Cravings.bWantsToRun
+		&& AimState == &State_Aim_NoAim
+		&& !GetCharacterMovement()->IsFalling()
+		&& GetCharacterMovement()->Velocity.SquaredLength() > 2500
+		&& !MeleeWeaponManagerComponent->AttackIsBeingPerformed()
+		&& !RangedWeaponManagerComponent->AttackIsBeingPerformed()
+	;
+}
+
+
+// FState_UprightNotRunning { ---------------------------------------------------------------------------
+
+void APlayerCharacterBase::FState_UprightNotRunning::Tick(float DeltaTime)
+{
+	if (Character.Cravings.bWantsToCrouch && !Character.GetCharacterMovement()->IsFalling())
 	{
-		if (bIsCrouching) ToCrouchState();
-		else ToUprightState();
+		Character.SetState(Character.State_TransitionUprightNotRunningToCrouch);
+	}
+
+	if (Character.RunningIsPossible())
+	{
+		Character.SetState(Character.State_UprightRunning);
 	}
 }
 
-void APlayerCharacterBase::RunIfPossible()
+void APlayerCharacterBase::FState_UprightNotRunning::TakeOver()
 {
-	bool previous = bIsRunning;
-	bIsRunning =
-		bWantsToRun
-		&& !IsInCrouchState()
-		&& !GetCharacterMovement()->IsFalling()
-		&& GetCharacterMovement()->Velocity.SquaredLength() > 2500
-		&& !WeaponManagerComponent->AttackIsBeingPerformed()
-	;
-	if (bIsRunning != previous)
+	Character.GetCharacterMovement()->MaxWalkSpeed = Character.DefaultJogSpeed;
+}
+
+// } FState_UprightNotRunning ---------------------------------------------------------------------------
+
+
+// FState_UprightRunning { ------------------------------------------------------------------------------
+
+void APlayerCharacterBase::FState_UprightRunning::Tick(float DeltaTime)
+{
+	if (!Character.RunningIsPossible())
 	{
-		GetCharacterMovement()->MaxWalkSpeed = bIsRunning ? RunSpeedCoef * DefaultJogSpeed : DefaultJogSpeed;
+		Character.SetState(Character.State_UprightNotRunning);
 	}
 }
+
+void APlayerCharacterBase::FState_UprightRunning::TakeOver()
+{
+	Character.GetCharacterMovement()->MaxWalkSpeed = Character.RunSpeedCoef * Character.DefaultJogSpeed;
+}
+
+// } FState_UprightRunning ------------------------------------------------------------------------------
+
+
+// FState_Crouch { --------------------------------------------------------------------------------------
+
+void APlayerCharacterBase::FState_Crouch::Tick(float DeltaTime)
+{
+	if (!Character.Cravings.bWantsToCrouch && Character.CanStandUpright())
+	{
+		Character.SetState(Character.State_TransitionCrouchToUprightNotRunning);
+	}
+}
+
+void APlayerCharacterBase::FState_Crouch::TakeOver()
+{
+}
+
+// } FState_Crouch --------------------------------------------------------------------------------------
+
+
+// FState_TransitionUprightNotRunningToCrouch { ---------------------------------------------------------
+
+void APlayerCharacterBase::FState_TransitionUprightNotRunningToCrouch::Tick(float DeltaTime)
+{
+	if (!Character.Cravings.bWantsToCrouch && Character.CanStandUpright())
+	{
+		Character.SetState(Character.State_TransitionCrouchToUprightNotRunning);
+		return;
+	}
+	if (Character.UprightToCrouchUpdater.Update(DeltaTime) == ETransitionFinished::Yes)
+	{
+		Character.SetCapsuleHalfHeight(1.f);
+		Character.SetState(Character.State_Crouch);
+	}
+}
+
+void APlayerCharacterBase::FState_TransitionUprightNotRunningToCrouch::TakeOver()
+{
+}
+
+// } FState_TransitionUprightNotRunningToCrouch ---------------------------------------------------------
+
+
+// FState_TransitionCrouchToUprightNotRunning { ---------------------------------------------------------
+
+void APlayerCharacterBase::FState_TransitionCrouchToUprightNotRunning::Tick(float DeltaTime)
+{
+	if (Character.Cravings.bWantsToCrouch)
+	{
+		Character.SetState(Character.State_TransitionUprightNotRunningToCrouch);
+		return;
+	}
+	if (Character.UprightToCrouchUpdater.Update(-DeltaTime) == ETransitionFinished::Yes)
+	{
+		Character.CrouchCoef = 0.f;
+		Character.UseUprightCameraPitch(Character.Controller, false);
+		Character.SetState(Character.State_UprightNotRunning);
+	}
+}
+
+void APlayerCharacterBase::FState_TransitionCrouchToUprightNotRunning::TakeOver()
+{
+	Character.SetCapsuleHalfHeight(0.f);
+}
+
+// } FState_TransitionCrouchToUprightNotRunning ---------------------------------------------------------
+
+
+
+
+// FState_Aim_NoAim { -----------------------------------------------------------------------------------
+
+void APlayerCharacterBase::FState_Aim_NoAim::Tick(float DeltaTime)
+{
+	if (Character.Cravings.bWantsToAim && Character.RangedWeaponManagerComponent->HasValidWeapon())
+	{
+		Character.SetAimState(Character.State_Aim_TransitionNoAimToAim);
+	}
+}
+
+void APlayerCharacterBase::FState_Aim_NoAim::TakeOver()
+{
+	Character.GetCharacterMovement()->bOrientRotationToMovement = true;
+	Character.GetCharacterMovement()->bUseControllerDesiredRotation = false;
+}
+
+// } FState_Aim_NoAim -----------------------------------------------------------------------------------
+
+
+// FState_Aim_Aim { -------------------------------------------------------------------------------------
+
+void APlayerCharacterBase::FState_Aim_Aim::Tick(float DeltaTime)
+{
+	if (!Character.Cravings.bWantsToAim)
+	{
+		Character.SetAimState(Character.State_Aim_TransitionAimToNoAim);
+	}
+}
+
+void APlayerCharacterBase::FState_Aim_Aim::TakeOver()
+{
+	Character.GetCharacterMovement()->bOrientRotationToMovement = false;
+	Character.GetCharacterMovement()->bUseControllerDesiredRotation = true;
+}
+
+// } FState_Aim_Aim -------------------------------------------------------------------------------------
+
+
+// FState_Aim_TransitionNoAimToAim { --------------------------------------------------------------------
+
+void APlayerCharacterBase::FState_Aim_TransitionNoAimToAim::Tick(float DeltaTime)
+{
+	if (!Character.Cravings.bWantsToAim)
+	{
+		Character.SetAimState(Character.State_Aim_TransitionAimToNoAim);
+		return;
+	}
+	if (Character.AimToNoAimUpdater.Update(DeltaTime) == ETransitionFinished::Yes)
+	{
+		Character.SetAimState(Character.State_Aim_Aim);
+	}
+}
+
+void APlayerCharacterBase::FState_Aim_TransitionNoAimToAim::TakeOver()
+{
+	Character.AimRotationCurrent = Character.GetCapsuleComponent()->GetComponentRotation();
+}
+
+// } FState_Aim_TransitionNoAimToAim --------------------------------------------------------------------
+
+
+// FState_Aim_TransitionAimToNoAim { --------------------------------------------------------------------
+
+void APlayerCharacterBase::FState_Aim_TransitionAimToNoAim::Tick(float DeltaTime)
+{
+	if (Character.Cravings.bWantsToAim)
+	{
+		Character.SetAimState(Character.State_Aim_TransitionNoAimToAim);
+		return;
+	}
+	if (Character.AimToNoAimUpdater.Update(-DeltaTime) == ETransitionFinished::Yes)
+	{
+		Character.SetAimState(Character.State_Aim_NoAim);
+	}
+}
+
+void APlayerCharacterBase::FState_Aim_TransitionAimToNoAim::TakeOver()
+{
+	auto Rotation = Character.CameraComponent->GetComponentRotation();
+	Rotation.Pitch = 0.f;
+	Character.AimRotationCurrent = Rotation;
+}
+
+// } FState_Aim_TransitionAimToNoAim --------------------------------------------------------------------
+
 
 void APlayerCharacterBase::RestoreBackupCameraPitch()
 {
@@ -263,11 +488,20 @@ void APlayerCharacterBase::SetSpringArmRelativeZ(float coef)
 
 void APlayerCharacterBase::SetCapsuleHalfHeight(float coef)
 {
+	float HalfHeightOld = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
 	float HalfHeight = FMath::Lerp(CapsuleUprightHalfHeightBackup, CapsuleCrouchHalfHeight, coef);
 	GetCapsuleComponent()->SetCapsuleHalfHeight(HalfHeight);
-	auto location = GetMesh()->GetRelativeLocation();
+	auto location = GetCapsuleComponent()->GetComponentLocation();
+	location.Z -= HalfHeightOld - HalfHeight;
+	GetCapsuleComponent()->SetWorldLocation(location);
+
+	location = GetMesh()->GetRelativeLocation();
 	location.Z = -HalfHeight + MeshZOffsetFromCapsuleLowestPointBackup;
 	GetMesh()->SetRelativeLocation(location);
+
+	location = SpringArmComponent->GetRelativeLocation();
+	location.Z = CapsuleUprightHalfHeightBackup - HalfHeight;
+	SpringArmComponent->SetRelativeLocation(location);
 }
 
 void APlayerCharacterBase::SetVelocityAccordingToCrouch(float coef)
@@ -275,7 +509,27 @@ void APlayerCharacterBase::SetVelocityAccordingToCrouch(float coef)
 	GetCharacterMovement()->MaxWalkSpeed = FMath::Lerp(1, CrouchVelocityCoef, coef) * DefaultJogSpeed;
 }
 
-void APlayerCharacterBase::UpdateUprightToCrouchSmoothCameraAndCapsuleTransition(float DeltaTime)
+void APlayerCharacterBase::SetSpringArmRelativeXY(float coef)
+{
+	FVector2D Offset = FMath::Lerp(SpringArmSocketOffsetXYBackup, SpringArmSocketOffsetXYForAim, coef);
+	SpringArmComponent->SocketOffset.X = Offset.X;
+	SpringArmComponent->SocketOffset.Y = Offset.Y;
+}
+
+void APlayerCharacterBase::SetAimRotation(float coef)
+{
+	FRotator Rotation = CameraComponent->GetComponentRotation();
+	Rotation.Pitch = 0.f;
+	GetCapsuleComponent()->SetWorldRotation(FMath::Lerp(AimRotationCurrent, Rotation, coef));
+}
+
+void APlayerCharacterBase::SetFov(float coef)
+{
+	CameraComponent->FieldOfView = FMath::Lerp(FovBackup, FovBackup*AimingFovCoef, coef);
+	AimMouseSensitivityCoef = 1 - coef*AimingFovCoef*0.5f;
+}
+
+APlayerCharacterBase::ETransitionFinished APlayerCharacterBase::FSmoothStateTransitionUpdater::Update(float DeltaTime)
 {
 	static constexpr auto CubicCurve =
 		[](float t)
@@ -285,57 +539,23 @@ void APlayerCharacterBase::UpdateUprightToCrouchSmoothCameraAndCapsuleTransition
 		}
 	;
 
-	if (CrouchSequenceType == ECrouchSequenceType::NONE)
-	{
-		return;
-	}
-
 	TimeInTransition += DeltaTime;
-	float t = CubicCurve(FMath::Clamp(TimeInTransition / TransitionTime, 0.f, 1.f));
-	float a = static_cast<int>(CrouchSequenceType);
 
-	CrouchCoef = a * t + 0.5 * (1 - a);
-
-	SetSpringArmRelativeZ(CrouchCoef);
-	SetCapsuleHalfHeight(CrouchCoef);
-	SetVelocityAccordingToCrouch(CrouchCoef);
-	UseCrouchCameraPitch(CrouchCoef);
+	Callback(CubicCurve(FMath::Clamp(TimeInTransition / TransitionTime, 0.f, 1.f)));
 
 	if (TimeInTransition >= TransitionTime)
 	{
+		check(DeltaTime > 0);
+		TimeInTransition = TransitionTime;
+		return ETransitionFinished::Yes;
+	}
+	if (TimeInTransition <= 0.f)
+	{
+		check(DeltaTime < 0);
 		TimeInTransition = 0.f;
-		if (CrouchSequenceType == ECrouchSequenceType::CROUCH_TO_UPRIGHT)
-		{
-			CrouchCoef = 0.f;
-			bWantsToStandUpright = false;
-			UseUprightCameraPitch(Controller, false);
-		}
-		CrouchSequenceType = ECrouchSequenceType::NONE;
+		return ETransitionFinished::Yes;
 	}
-}
-
-void APlayerCharacterBase::ToCrouchState()
-{
-	bWantsToStandUpright = false;
-	if (CrouchSequenceType == ECrouchSequenceType::CROUCH_TO_UPRIGHT)
-	{
-		TimeInTransition = TransitionTime - TimeInTransition;
-	}
-	CrouchSequenceType = ECrouchSequenceType::UPRIGHT_TO_CROUCH;
-}
-
-void APlayerCharacterBase::ToUprightState()
-{
-	bWantsToStandUpright = true;
-	if (!IsInCrouchState() || !CanStandUpright())
-	{
-		return;
-	}
-	if (CrouchSequenceType == ECrouchSequenceType::UPRIGHT_TO_CROUCH)
-	{
-		TimeInTransition = TransitionTime - TimeInTransition;
-	}
-	CrouchSequenceType = ECrouchSequenceType::CROUCH_TO_UPRIGHT;
+	return ETransitionFinished::No;
 }
 
 bool APlayerCharacterBase::CanStandUpright() const
@@ -370,28 +590,52 @@ bool APlayerCharacterBase::CanStandUpright() const
 	return !bHit;
 }
 
-void APlayerCharacterBase::StandUprightIfPossible()
-{
-	if (IsInCrouchState() && bWantsToStandUpright && CanStandUpright())
-	{
-		CrouchSequenceType = ECrouchSequenceType::CROUCH_TO_UPRIGHT;
-	}
-}
-
 void APlayerCharacterBase::BeginAttack()
 {
-	if (!bIsRunning && !GetCharacterMovement()->IsFalling())
+	if (AimState == &State_Aim_NoAim)
 	{
-		WeaponManagerComponent->BeginAttack();
+		if (State != &State_UprightRunning && !GetCharacterMovement()->IsFalling())
+		{
+			SmoothlyOrientSelfToWorldYawValue(CameraComponent->GetComponentRotation().Yaw);
+			MeleeWeaponManagerComponent->BeginAttack();
+		}
+	}
+	else
+	{
+		RangedWeaponManagerComponent->BeginAttack();
 	}
 }
 
 void APlayerCharacterBase::EndAttack()
 {
-	if (!bIsRunning && !GetCharacterMovement()->IsFalling())
+	if (MeleeWeaponManagerComponent->AttackIsBeingPerformed())
 	{
-		WeaponManagerComponent->EndAttack();
+		MeleeWeaponManagerComponent->EndAttack();
 	}
+	if (RangedWeaponManagerComponent->AttackIsBeingPerformed())
+	{
+		RangedWeaponManagerComponent->EndAttack();
+	}
+}
+
+void APlayerCharacterBase::BeginAim()
+{
+	Cravings.bWantsToAim = true;
+}
+
+void APlayerCharacterBase::EndAim()
+{
+	Cravings.bWantsToAim = false;
+	EndAttack();
+}
+
+void APlayerCharacterBase::OnMeleeAttackFinished()
+{
+	StopSmoothlyOrientSelfToWorldYawValue();
+}
+void APlayerCharacterBase::OnRangedAttackFinished()
+{
+	//
 }
 
 void APlayerCharacterBase::Landed(const FHitResult& Hit)
@@ -427,7 +671,8 @@ void APlayerCharacterBase::Die()
 	PlayAnimMontage(DeathAnimMontage);
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
-	WeaponManagerComponent->EndAttack();
+	MeleeWeaponManagerComponent->EndAttack();
+	RangedWeaponManagerComponent->EndAttack();
 }
 
 void APlayerCharacterBase::RotateSelfIfNeeded(float DeltaTime)

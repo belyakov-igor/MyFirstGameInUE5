@@ -25,11 +25,17 @@ void UWeaponManagerComponent::AddWeapon(ABaseWeapon* Weapon)
 	}
 	Weapons.Add(Weapon);
 	Weapon->SetOwner(Character);
+	Weapon->OnAttackFinished.BindLambda([this]{ OnAttackFinished.Execute(); });
 }
 
 bool UWeaponManagerComponent::AttackIsBeingPerformed() const
 {
-	return CurrentWeapon()->AttackIsBeingPerformed();
+	return HasValidWeapon() && CurrentWeapon()->AttackIsBeingPerformed();
+}
+
+bool UWeaponManagerComponent::HasValidWeapon() const
+{
+	return !Weapons.IsEmpty() && CurrentWeapon() != nullptr;
 }
 
 void UWeaponManagerComponent::SpawnAndAddDefaultWeapons()
@@ -53,6 +59,10 @@ void UWeaponManagerComponent::SpawnAndAddDefaultWeapons()
 
 void UWeaponManagerComponent::BeginAttack()
 {
+	if (Weapons.IsEmpty())
+	{
+		return;
+	}
 	auto Weapon = CurrentWeapon();
 	if (!Weapon->AttackIsBeingPerformed())
 	{
@@ -62,6 +72,10 @@ void UWeaponManagerComponent::BeginAttack()
 
 void UWeaponManagerComponent::EndAttack()
 {
+	if (Weapons.IsEmpty())
+	{
+		return;
+	}
 	auto Weapon = CurrentWeapon();
 	if (Weapon->AttackIsBeingPerformed())
 	{

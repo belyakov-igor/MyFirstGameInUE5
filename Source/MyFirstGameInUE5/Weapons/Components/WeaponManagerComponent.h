@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Weapons/Actors/BaseWeapon.h"
+
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 
@@ -21,13 +23,16 @@ public:
 	void AddWeapon(ABaseWeapon* Weapon);
 
 	bool AttackIsBeingPerformed() const;
+	bool HasValidWeapon() const;
+
+	FOnAttackFinished OnAttackFinished;
 
 protected:
 	virtual void BeginPlay() override;
 
 	// Weapons that the owner character currently has. Supposed to
 	// be added during gameplay as well as in the BeginPlay()
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Weapon")
 	TArray<ABaseWeapon*> Weapons;
 
 	// What weapons should be spawned and added to Weapons array in the BeginPlay()

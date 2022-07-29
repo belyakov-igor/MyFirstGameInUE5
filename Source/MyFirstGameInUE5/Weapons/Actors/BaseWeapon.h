@@ -5,6 +5,8 @@
 
 #include "BaseWeapon.generated.h"
 
+DECLARE_DELEGATE(FOnAttackFinished);
+
 UCLASS()
 class MYFIRSTGAMEINUE5_API ABaseWeapon : public AActor
 {
@@ -17,6 +19,8 @@ public:
 	virtual void EndAttack() {};
 
 	bool AttackIsBeingPerformed() const { return bAttackIsBeingPerformed; }
+
+	FOnAttackFinished OnAttackFinished;
 
 protected:
 	bool bAttackIsBeingPerformed = false;

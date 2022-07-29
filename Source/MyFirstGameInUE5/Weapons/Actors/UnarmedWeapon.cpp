@@ -118,7 +118,7 @@ void AUnarmedWeapon::OnAttackFinishedNotify(USkeletalMeshComponent* Mesh)
 	}
 	Character->GetCharacterMovement()->MovementMode = MOVE_Walking;
 	bAttackIsBeingPerformed = false;
-	Character->StopSmoothlyOrientSelfToWorldYawValue();
+	OnAttackFinished.Execute();
 }
 
 USkeletalMeshComponent* AUnarmedWeapon::GetCharacterMesh() const

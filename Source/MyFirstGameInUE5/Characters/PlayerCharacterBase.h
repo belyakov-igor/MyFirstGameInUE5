@@ -40,7 +40,10 @@ public:
 	class UClampedIntegerComponent* HealthComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
-	class UWeaponManagerComponent* WeaponManagerComponent;
+	class UWeaponManagerComponent* MeleeWeaponManagerComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	class UWeaponManagerComponent* RangedWeaponManagerComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	class UTextRenderComponent* HealthTextComponent;
@@ -63,7 +66,11 @@ public:
 
 	// How much time takes transitin from upright to crouch and vice-versa
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion", meta = (ClampMin = 0.f, ClampMax = 3.f))
-	float TransitionTime = 0.5f;
+	float UprightToCrouchTransitionTime = 0.5f;
+
+	// How much time takes transitin from no aim to aim and vice-versa
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack", meta = (ClampMin = 0.f, ClampMax = 3.f))
+	float AimToNoAimTransitionTime = 0.5f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     class UAnimMontage* DeathAnimMontage;
@@ -74,9 +81,15 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
 	FVector2D LandingDamageRange{10.f, 100.f};
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
+	FVector2D SpringArmSocketOffsetXYForAim{60.f, 100.f};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
+	float AimingFovCoef = 0.8f;
+
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
-	bool IsRunning() const;
+	bool IsInRunState() const;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	bool IsInCrouchState() const;
@@ -91,7 +104,13 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	float GetCrouchCoef() const;
 
-	
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attack")
+	bool AttackIsBeingPerformed() const;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attack")
+	bool IsInNoAimingState() const;
+
+
 
 // SmoothlyOrientSelfToWorldYawValue facilities {
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion")
@@ -108,6 +127,106 @@ public:
 	virtual void Landed(const FHitResult& Hit) override;
 
 private:
+
+	struct FCravings
+	{
+		bool bWantsToRun = false;
+		bool bWantsToCrouch = false;
+		bool bWantsToAim = false;
+	};
+	FCravings Cravings;
+
+// States {
+	bool RunningIsPossible() const; // minimum conditions for running (regardless of state)
+
+	struct FState
+	{
+		virtual void Tick(float DeltaTime) {};
+		virtual void TakeOver() {};
+
+		APlayerCharacterBase& Character;
+		explicit FState(APlayerCharacterBase& Character) : Character(Character) {}
+	};
+
+	FState* State = nullptr;
+	void SetState(FState& NewState) { State = &NewState; State->TakeOver(); }
+
+	struct FState_UprightNotRunning : FState
+	{
+		virtual void Tick(float DeltaTime) override;
+		virtual void TakeOver() override;
+		explicit FState_UprightNotRunning(APlayerCharacterBase& Character) : FState(Character) {}
+	};
+	FState_UprightNotRunning State_UprightNotRunning{*this};
+
+	struct FState_UprightRunning : FState
+	{
+		virtual void Tick(float DeltaTime) override;
+		virtual void TakeOver() override;
+		explicit FState_UprightRunning(APlayerCharacterBase& Character) : FState(Character) {}
+	};
+	FState_UprightRunning State_UprightRunning{*this};
+
+	struct FState_Crouch : FState
+	{
+		virtual void Tick(float DeltaTime) override;
+		virtual void TakeOver() override;
+		explicit FState_Crouch(APlayerCharacterBase& Character) : FState(Character) {}
+	};
+	FState_Crouch State_Crouch{*this};
+
+	struct FState_TransitionUprightNotRunningToCrouch : FState
+	{
+		virtual void Tick(float DeltaTime) override;
+		virtual void TakeOver() override;
+		explicit FState_TransitionUprightNotRunningToCrouch(APlayerCharacterBase& Character) : FState(Character) {}
+	};
+	FState_TransitionUprightNotRunningToCrouch State_TransitionUprightNotRunningToCrouch{*this};
+
+	struct FState_TransitionCrouchToUprightNotRunning : FState
+	{
+		virtual void Tick(float DeltaTime) override;
+		virtual void TakeOver() override;
+		explicit FState_TransitionCrouchToUprightNotRunning(APlayerCharacterBase& Character) : FState(Character) {}
+	};
+	FState_TransitionCrouchToUprightNotRunning State_TransitionCrouchToUprightNotRunning{*this};
+
+	// Aim states -------------------------------------------------------------------------------------------------
+	FState* AimState = nullptr;
+	void SetAimState(FState& NewState) { AimState = &NewState; AimState->TakeOver(); }
+
+	struct FState_Aim_NoAim : FState
+	{
+		virtual void Tick(float DeltaTime) override;
+		virtual void TakeOver() override;
+		explicit FState_Aim_NoAim(APlayerCharacterBase& Character) : FState(Character) {}
+	};
+	FState_Aim_NoAim State_Aim_NoAim{*this};
+
+	struct FState_Aim_Aim : FState
+	{
+		virtual void Tick(float DeltaTime) override;
+		virtual void TakeOver() override;
+		explicit FState_Aim_Aim(APlayerCharacterBase& Character) : FState(Character) {}
+	};
+	FState_Aim_Aim State_Aim_Aim{*this};
+
+	struct FState_Aim_TransitionNoAimToAim : FState
+	{
+		virtual void Tick(float DeltaTime) override;
+		virtual void TakeOver() override;
+		explicit FState_Aim_TransitionNoAimToAim(APlayerCharacterBase& Character) : FState(Character) {}
+	};
+	FState_Aim_TransitionNoAimToAim State_Aim_TransitionNoAimToAim{*this};
+
+	struct FState_Aim_TransitionAimToNoAim : FState
+	{
+		virtual void Tick(float DeltaTime) override;
+		virtual void TakeOver() override;
+		explicit FState_Aim_TransitionAimToNoAim(APlayerCharacterBase& Character) : FState(Character) {}
+	};
+	FState_Aim_TransitionAimToNoAim State_Aim_TransitionAimToNoAim{*this};
+// } States
 
 // Damage {
 	UFUNCTION()
@@ -134,16 +253,6 @@ private:
 	void OnJumpButtonPressed();
 // } Action and axis mappings
 
-// Locomotion helpers {
-	bool bWantsToCrouch = false;
-	bool bIsCrouching = false;
-	void CrouchIfPossible();
-
-	bool bWantsToRun = false;
-	bool bIsRunning = false;
-	void RunIfPossible();
-// } Locomotion helpers
-
 // Camera pitch {
 	float MinCameraPitchBackup = 0.f;
 	float MaxCameraPitchBackup = 0.f;
@@ -158,7 +267,19 @@ private:
 	void UseCrouchCameraPitch(float coef);
 // } Camera pitch
 
-// Upright to crouch smooth camera and capsule transition {
+	enum class ETransitionFinished { No, Yes };
+
+	struct FSmoothStateTransitionUpdater
+	{
+		float TransitionTime = 0.f;
+		std::function<void(float Coef)> Callback;
+
+		[[nodiscard]] ETransitionFinished Update(float DeltaTime);
+	private:
+		float TimeInTransition = 0.f;
+	};
+
+// Upright to crouch smooth transition {
 	float CapsuleUprightHalfHeightBackup = 0.f;
 	float SpringArmSocketOffsetZBackup = 0.f;
 	float MeshZOffsetFromCapsuleLowestPointBackup = 0.f;
@@ -168,31 +289,38 @@ private:
 	void SetCapsuleHalfHeight(float coef);
 	void SetVelocityAccordingToCrouch(float coef);
 
-	enum class ECrouchSequenceType : int
-	{
-		UPRIGHT_TO_CROUCH = 1
-		, CROUCH_TO_UPRIGHT = -1
-		, NONE = 0
-	};
-	ECrouchSequenceType CrouchSequenceType = ECrouchSequenceType::NONE;
-	float TimeInTransition = 0.f;
+	FSmoothStateTransitionUpdater UprightToCrouchUpdater;
+// } Upright to crouch smooth transition
 
-	void UpdateUprightToCrouchSmoothCameraAndCapsuleTransition(float DeltaTime);
-// } Upright to crouch smooth camera and capsule transition
+// Aim to no aim smooth transition {
+	FVector2D SpringArmSocketOffsetXYBackup{0.f, 0.f};
+	float FovBackup = 0.f;
+
+	FRotator AimRotationCurrent{ 0.f, 0.f, 0.f };
+	float AimMouseSensitivityCoef = 1.f;
+
+	// coef == 1 for aim, 0 for no aim
+	void SetSpringArmRelativeXY(float coef);
+	void SetAimRotation(float coef);
+	void SetFov(float coef);
+
+	FSmoothStateTransitionUpdater AimToNoAimUpdater;
+	// } Upright to crouch smooth transition
 
 // Upright to crouch switch {
 	float CrouchCoef = 0.f;
-	bool bWantsToStandUpright = false;
 
-	void ToCrouchState();
-	void ToUprightState();
 	bool CanStandUpright() const;
-	void StandUprightIfPossible();
 // } Upright to crouch switch
 
 // Attack {
 	void BeginAttack();
 	void EndAttack();
+	void BeginAim();
+	void EndAim();
+
+	void OnMeleeAttackFinished();
+	void OnRangedAttackFinished();
 // } Attack
 
 // SmoothlyOrientSelfToWorldYawValue facilities {
@@ -200,6 +328,6 @@ private:
 
 	bool bSmoothlyOrientSelf_Required = false;
 	float SmoothlyOrientSelf_WorldYawValue = 0.f;
-// { SmoothlyOrientSelfToWorldYawValue facilities
+// } SmoothlyOrientSelfToWorldYawValue facilities
 
 };
