@@ -1,11 +1,19 @@
-// Fill out your copyright notice in the Description page of Project Settings.
-
 #pragma once
+
+#include "Global/Utilities/MyUtilities.h"
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 
 #include "PlayerCharacterBase.generated.h"
+
+UENUM(BlueprintType)
+enum EPlayerCharacterBaseAnimationSet
+{
+	Unarmed     UMETA(DisplayName = "Unarmed"),
+	Pistol      UMETA(DisplayName = "Pistol"),
+	Rifle       UMETA(DisplayName = "Rifle"),
+};
 
 UCLASS()
 class MYFIRSTGAMEINUE5_API APlayerCharacterBase : public ACharacter
@@ -13,18 +21,14 @@ class MYFIRSTGAMEINUE5_API APlayerCharacterBase : public ACharacter
 	GENERATED_BODY()
 
 public:
-	// Sets default values for this character's properties
 	APlayerCharacterBase();
 
 protected:
-	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
 public:	
-	// Called every frame
 	virtual void Tick(float DeltaTime) override;
 
-	// Called to bind functionality to input
 	virtual void SetupPlayerInputComponent(class UInputComponent* PlayerInputComponent) override;
 
 	virtual void PossessedBy(AController* NewController) override;
@@ -70,7 +74,7 @@ public:
 
 	// How much time takes transitin from no aim to aim and vice-versa
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack", meta = (ClampMin = 0.f, ClampMax = 3.f))
-	float AimToNoAimTransitionTime = 0.5f;
+	float AimToNoAimTransitionTime = 0.3f;
 
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     class UAnimMontage* DeathAnimMontage;
@@ -87,12 +91,18 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
 	float AimingFovCoef = 0.8f;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Status)
+	TEnumAsByte<EPlayerCharacterBaseAnimationSet> AnimationSet = EPlayerCharacterBaseAnimationSet::Unarmed;
+
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	bool IsInRunState() const;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	bool IsInCrouchState() const;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attack")
+	bool IsInNoAimingState() const;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	float GetForwardMovementInput() const;
@@ -106,9 +116,6 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attack")
 	bool AttackIsBeingPerformed() const;
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attack")
-	bool IsInNoAimingState() const;
 
 
 
@@ -238,6 +245,7 @@ private:
 		, AActor* DamageCauser
 	);
 	void Die();
+	bool bIsDead = false;
 // } Damage
 
 // Action and axis mappings {
@@ -251,6 +259,11 @@ private:
 	void OnRunButtonPressed();
 	void OnRunButtonReleased();
 	void OnJumpButtonPressed();
+
+	void OnWeapon1Pressed();
+	void OnWeapon2Pressed();
+	void OnWeapon3Pressed();
+	void OnWeapon4Pressed();
 // } Action and axis mappings
 
 // Camera pitch {
@@ -316,6 +329,10 @@ private:
 // Attack {
 	void BeginAttack();
 	void EndAttack();
+
+	bool CanMakeMeleeAttack() const;
+	bool CanMakeRangedAttack() const;
+
 	void BeginAim();
 	void EndAim();
 

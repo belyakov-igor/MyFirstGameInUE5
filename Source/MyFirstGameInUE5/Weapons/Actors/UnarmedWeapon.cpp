@@ -6,7 +6,6 @@
 #include "Characters/PlayerCharacterBase.h"
 
 #include "Animation/AnimMontage.h"
-#include "GameFramework/Character.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/EngineTypes.h"
@@ -121,23 +120,9 @@ void AUnarmedWeapon::OnAttackFinishedNotify(USkeletalMeshComponent* Mesh)
 	OnAttackFinished.Execute();
 }
 
-USkeletalMeshComponent* AUnarmedWeapon::GetCharacterMesh() const
+void AUnarmedWeapon::SwitchCharacterToAnimationSet() const
 {
-	auto Character = Cast<ACharacter>(GetOwner());
-	if (Character == nullptr)
-	{
-		return nullptr;
-	}
-	return Character->GetMesh();
+	auto Character = Cast<APlayerCharacterBase>(GetOwner());
+	check(Character != nullptr);
+	Character->AnimationSet = EPlayerCharacterBaseAnimationSet::Unarmed;
 }
-
-std::pair<ACharacter*, USkeletalMeshComponent*> AUnarmedWeapon::GetCharacterAndCharacterMesh() const
-{
-	auto Character = Cast<ACharacter>(GetOwner());
-	if (Character == nullptr)
-	{
-		return {nullptr, nullptr};
-	}
-	return { Character, Character->GetMesh() };
-}
-

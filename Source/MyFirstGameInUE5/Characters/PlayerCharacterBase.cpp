@@ -71,6 +71,13 @@ void APlayerCharacterBase::BeginPlay()
 	UprightToCrouchUpdater.Callback =
 		[this](float Coef)
 		{
+			if (
+				(CrouchCoef < 0.5f && Coef >= 0.5f)
+				|| (CrouchCoef >= 0.5f && Coef < 0.5f)
+			)
+			{
+				StopAnimMontage(GetCurrentMontage());
+			}
 			CrouchCoef = Coef;
 			SetSpringArmRelativeZ(Coef);
 			SetVelocityAccordingToCrouch(Coef);
@@ -144,6 +151,12 @@ void APlayerCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAction("Attack", EInputEvent::IE_Released, this, &APlayerCharacterBase::EndAttack);
 	PlayerInputComponent->BindAction("Aim", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::BeginAim);
 	PlayerInputComponent->BindAction("Aim", EInputEvent::IE_Released, this, &APlayerCharacterBase::EndAim);
+	PlayerInputComponent->BindAction("Reload", EInputEvent::IE_Pressed, RangedWeaponManagerComponent, &UWeaponManagerComponent::Reload);
+
+	PlayerInputComponent->BindAction("Weapon 1", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon1Pressed);
+	PlayerInputComponent->BindAction("Weapon 2", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon2Pressed);
+	PlayerInputComponent->BindAction("Weapon 3", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon3Pressed);
+	PlayerInputComponent->BindAction("Weapon 4", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon4Pressed);
 }
 
 bool APlayerCharacterBase::IsInRunState() const
@@ -231,6 +244,11 @@ void APlayerCharacterBase::OnJumpButtonPressed()
 		Jump();
 	}
 }
+
+void APlayerCharacterBase::OnWeapon1Pressed() { RangedWeaponManagerComponent->SetCurrentWeapon(0); }
+void APlayerCharacterBase::OnWeapon2Pressed() { RangedWeaponManagerComponent->SetCurrentWeapon(1); }
+void APlayerCharacterBase::OnWeapon3Pressed() { RangedWeaponManagerComponent->SetCurrentWeapon(2); }
+void APlayerCharacterBase::OnWeapon4Pressed() { RangedWeaponManagerComponent->SetCurrentWeapon(3); }
 
 bool APlayerCharacterBase::RunningIsPossible() const
 {
@@ -357,7 +375,11 @@ void APlayerCharacterBase::FState_TransitionCrouchToUprightNotRunning::TakeOver(
 
 void APlayerCharacterBase::FState_Aim_NoAim::Tick(float DeltaTime)
 {
-	if (Character.Cravings.bWantsToAim && Character.RangedWeaponManagerComponent->HasValidWeapon())
+	if (
+		Character.Cravings.bWantsToAim
+		&& Character.RangedWeaponManagerComponent->HasValidWeapon()
+		&& !Character.MeleeWeaponManagerComponent->AttackIsBeingPerformed()
+	)
 	{
 		Character.SetAimState(Character.State_Aim_TransitionNoAimToAim);
 	}
@@ -409,6 +431,7 @@ void APlayerCharacterBase::FState_Aim_TransitionNoAimToAim::Tick(float DeltaTime
 void APlayerCharacterBase::FState_Aim_TransitionNoAimToAim::TakeOver()
 {
 	Character.AimRotationCurrent = Character.GetCapsuleComponent()->GetComponentRotation();
+	Character.RangedWeaponManagerComponent->BeginAim();
 }
 
 // } FState_Aim_TransitionNoAimToAim --------------------------------------------------------------------
@@ -425,6 +448,7 @@ void APlayerCharacterBase::FState_Aim_TransitionAimToNoAim::Tick(float DeltaTime
 	}
 	if (Character.AimToNoAimUpdater.Update(-DeltaTime) == ETransitionFinished::Yes)
 	{
+		Character.RangedWeaponManagerComponent->EndAim();
 		Character.SetAimState(Character.State_Aim_NoAim);
 	}
 }
@@ -434,6 +458,7 @@ void APlayerCharacterBase::FState_Aim_TransitionAimToNoAim::TakeOver()
 	auto Rotation = Character.CameraComponent->GetComponentRotation();
 	Rotation.Pitch = 0.f;
 	Character.AimRotationCurrent = Rotation;
+	Character.RangedWeaponManagerComponent->EndAttack();
 }
 
 // } FState_Aim_TransitionAimToNoAim --------------------------------------------------------------------
@@ -592,18 +617,37 @@ bool APlayerCharacterBase::CanStandUpright() const
 
 void APlayerCharacterBase::BeginAttack()
 {
-	if (AimState == &State_Aim_NoAim)
+	if (CanMakeMeleeAttack())
 	{
-		if (State != &State_UprightRunning && !GetCharacterMovement()->IsFalling())
-		{
-			SmoothlyOrientSelfToWorldYawValue(CameraComponent->GetComponentRotation().Yaw);
-			MeleeWeaponManagerComponent->BeginAttack();
-		}
+		SmoothlyOrientSelfToWorldYawValue(CameraComponent->GetComponentRotation().Yaw);
+		MeleeWeaponManagerComponent->BeginAttack();
+		return;
 	}
-	else
+	if (CanMakeRangedAttack())
 	{
 		RangedWeaponManagerComponent->BeginAttack();
 	}
+}
+
+bool APlayerCharacterBase::CanMakeMeleeAttack() const
+{
+	return
+		AimState == &State_Aim_NoAim
+		&& State == &State_UprightNotRunning
+		&& !GetCharacterMovement()->IsFalling()
+		&& !MeleeWeaponManagerComponent->AttackIsBeingPerformed()
+		&& !RangedWeaponManagerComponent->AttackIsBeingPerformed()
+	;
+}
+
+bool APlayerCharacterBase::CanMakeRangedAttack() const
+{
+	return
+		AimState == &State_Aim_Aim
+		&& State != &State_UprightRunning
+		&& !MeleeWeaponManagerComponent->AttackIsBeingPerformed()
+		&& !RangedWeaponManagerComponent->AttackIsBeingPerformed()
+	;
 }
 
 void APlayerCharacterBase::EndAttack()
@@ -635,7 +679,6 @@ void APlayerCharacterBase::OnMeleeAttackFinished()
 }
 void APlayerCharacterBase::OnRangedAttackFinished()
 {
-	//
 }
 
 void APlayerCharacterBase::Landed(const FHitResult& Hit)
@@ -662,12 +705,19 @@ void APlayerCharacterBase::TakeAnyDamage(
 	, AActor* DamageCauser
 )
 {
+	if (bIsDead)
+	{
+		return;
+	}
 	HealthComponent->Decrease(static_cast<int32>(Damage));
-	UE_LOG(PlayerCharacterBase, Display, TEXT("Damage taken: %d, Health: %d"), static_cast<int32>(Damage), HealthComponent->GetValue());
 }
 
 void APlayerCharacterBase::Die()
 {
+	if (bIsDead)
+	{
+		return;
+	}
 	PlayAnimMontage(DeathAnimMontage);
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);

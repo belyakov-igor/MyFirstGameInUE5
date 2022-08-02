@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Global/Utilities/MyUtilities.h"
 #include "Weapons/Actors/BaseWeapon.h"
 
 #include "CoreMinimal.h"
@@ -17,33 +18,47 @@ class MYFIRSTGAMEINUE5_API UWeaponManagerComponent : public UActorComponent
 public:
 	UWeaponManagerComponent();
 
-	virtual void BeginAttack();
-	virtual void EndAttack();
+	/** Weapons that the owner character currently has. Supposed to
+	 *  be added during gameplay as well as in the BeginPlay()
+	 */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
+	TArray<ABaseWeapon*> Weapons;
+
+	/** What weapons should be spawned and added to Weapons array in the BeginPlay() */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon")
+	TArray<TSubclassOf<ABaseWeapon>> DefaultWeapons;
+
+
+	/** Return true if succeeded*/
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	bool SetCurrentWeapon(int32 index);
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	int32 GetCurrentWeaponIndex() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void Reload();
+
+	void BeginAttack();
+	void EndAttack();
+
+	void BeginAim();
+	void EndAim();
 
 	void AddWeapon(ABaseWeapon* Weapon);
 
 	bool AttackIsBeingPerformed() const;
-	bool HasValidWeapon() const;
 
-	FOnAttackFinished OnAttackFinished;
+	FSignalSignature OnAttackFinished;
+
+	bool HasValidWeapon() const;
 
 protected:
 	virtual void BeginPlay() override;
 
-	// Weapons that the owner character currently has. Supposed to
-	// be added during gameplay as well as in the BeginPlay()
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Weapon")
-	TArray<ABaseWeapon*> Weapons;
-
-	// What weapons should be spawned and added to Weapons array in the BeginPlay()
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon")
-	TArray<TSubclassOf<ABaseWeapon>> DefaultWeapons;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon", meta = (ClampMin = 0))
-	int32 CurrentWeaponIndex = 0;
-
 private:
 	ABaseWeapon* CurrentWeapon() const;
-
 	void SpawnAndAddDefaultWeapons();
+
+	int32 CurrentWeaponIndex = 0;
 };

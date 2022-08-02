@@ -32,6 +32,7 @@ public:
 	float PunchMomentum = 300.f;
 
 	virtual void BeginAttack() override;
+	virtual void SwitchCharacterToAnimationSet() const override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -41,6 +42,4 @@ private:
 	FVector GetHitLocation() const;
 	void OnHitNotify(USkeletalMeshComponent* Mesh);
 	void OnAttackFinishedNotify(USkeletalMeshComponent* Mesh);
-	USkeletalMeshComponent* GetCharacterMesh() const;
-	std::pair<ACharacter*, USkeletalMeshComponent*> GetCharacterAndCharacterMesh() const;
 };

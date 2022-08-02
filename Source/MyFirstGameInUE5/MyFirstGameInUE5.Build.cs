@@ -16,8 +16,9 @@ public class MyFirstGameInUE5 : ModuleRules
 			"MyFirstGameInUE5"
 			, "MyFirstGameInUE5/Weapons/Components"
 			, "MyFirstGameInUE5/Weapons/Actors"
-			, "MyFirstGameInUE5/Utilities/Components"
 			, "MyFirstGameInUE5/Global"
+			, "MyFirstGameInUE5/Global/Utilities"
+			, "MyFirstGameInUE5/Global/Utilities/Components"
 			, "MyFirstGameInUE5/Characters"
 		});
 
