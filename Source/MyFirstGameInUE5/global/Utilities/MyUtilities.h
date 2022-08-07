@@ -4,7 +4,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "MyUtilities.generated.h"
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FInt32ValueMulticastSignature, int32);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FInt32Int32MulticastSignature, int32, int32);
 DECLARE_MULTICAST_DELEGATE(FSignalMulticastSignature);
 DECLARE_DELEGATE(FSignalSignature);
 

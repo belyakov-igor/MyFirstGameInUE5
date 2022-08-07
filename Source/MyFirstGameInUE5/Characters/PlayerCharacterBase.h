@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Global/Utilities/MyUtilities.h"
+#include "Weapons/WeaponUtilities.h"
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -44,13 +44,13 @@ public:
 	class UClampedIntegerComponent* HealthComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	class UClampedIntegerComponent* StaminaComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	class UWeaponManagerComponent* MeleeWeaponManagerComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	class UWeaponManagerComponent* RangedWeaponManagerComponent;
-
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
-	class UTextRenderComponent* HealthTextComponent;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion", meta = (ClampMin = 1.2f, ClampMax = 4.f))
 	float RunSpeedCoef = 1.5f;
@@ -91,8 +91,26 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
 	float AimingFovCoef = 0.8f;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Status)
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Status")
 	TEnumAsByte<EPlayerCharacterBaseAnimationSet> AnimationSet = EPlayerCharacterBaseAnimationSet::Unarmed;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
+	TSubclassOf<class UUserWidget> HUDWidgetClass = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stamina", meta = (ClampMin = 0.001f))
+	float TimeIntervalForStaminaDecresingOnRunning = 0.01f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stamina", meta = (ClampMin = 0))
+	int32 AmountOfStaminaDecresingOnRunning = 2;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stamina", meta = (ClampMin = 0.f))
+	float TimeBeforeStaminaRegeneration = 3.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stamina", meta = (ClampMin = 0.01f))
+	float TimeIntervalForStaminaRegeneration = 0.01f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stamina", meta = (ClampMin = 0))
+	int32 AmountOfStaminaRegeneration = 1;
 
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
@@ -102,7 +120,10 @@ public:
 	bool IsInCrouchState() const;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attack")
-	bool IsInNoAimingState() const;
+	bool IsInNoAimingState() const { return AimState == &State_Aim_NoAim; }
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attack")
+	bool IsInAimingState() const { return AimState == &State_Aim_Aim; }
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	float GetForwardMovementInput() const;
@@ -130,8 +151,19 @@ public:
 	void StopSmoothlyOrientSelfToWorldYawValue();
 // } SmoothlyOrientSelfToWorldYawValue facilities
 
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	bool GetRangedWeaponUIData(struct FWeaponUIData& RangedFWeaponUIData) const;
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void GetHealthData(int32& Health, int32& MaxHealth) const;
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void GetStaminaData(int32& Stamina, int32& MaxStamina) const;
+
 
 	virtual void Landed(const FHitResult& Hit) override;
+
+	void OnWeaponAndAmmoChanged();
 
 private:
 
@@ -248,11 +280,18 @@ private:
 	bool bIsDead = false;
 // } Damage
 
+// Stamina {
+	FTimerHandle StaminaDecreasingTimerHandle{};
+	FTimerHandle StaminaRegenerationTimerHandle{};
+	void WaitForSomeTimeAndStartRegeneratingStaminaIfNeeded(int32 OldStamina, int32 NewStamina);
+// } Stamina
+
 // Action and axis mappings {
 	void MoveForward(float Amount);
 	void MoveRight(float Amount);
 	void LookUp(float Amount);
 	void LookRight(float Amount);
+	void OnMouseWheelInput(float Amount);
 
 	void OnCrouchButtonPressed();
 	void OnCrouchButtonReleased();
@@ -347,4 +386,6 @@ private:
 	float SmoothlyOrientSelf_WorldYawValue = 0.f;
 // } SmoothlyOrientSelfToWorldYawValue facilities
 
+	UPROPERTY()
+	class UCharacterManHUDWidget* HUDWidget = nullptr;
 };

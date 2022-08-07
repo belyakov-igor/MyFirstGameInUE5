@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Global/Utilities/MyUtilities.h"
+#include "Weapons/WeaponUtilities.h"
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -31,6 +32,12 @@ public:
 	/** In degrees */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon")
 	float BulletSpread = 0.f;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
+	class UTexture2D* WeaponIcon = nullptr;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
+	class UTexture2D* CrossHairIcon = nullptr;
 
 	virtual void BeginAttack() {}
 	virtual void EndAttack() {}
@@ -40,6 +47,8 @@ public:
 	bool AttackIsBeingPerformed() const { return bAttackIsBeingPerformed; }
 
 	void AttachToOwner(class ACharacter* NewOwner);
+
+	struct FWeaponUIData GetUIData() const;
 
 	FSignalSignature OnAttackFinished;
 

@@ -1,6 +1,3 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
-
 #include "MyFirstGameInUE5GameModeBase.h"
 #include "Characters/PlayerCharacterBase.h"
 #include "Characters/PlayerPlayerControllerBase.h"

@@ -2,23 +2,28 @@
 
 #include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
+#include "GameFramework/GameUserSettings.h"
 
 #include "Settings.h"
 
-UMyGameInstance::UMyGameInstance()
+void UMyGameInstance::UMyGameInstance::Init()
 {
-	settings = NewObject<USettings>();
+	Settings = NewObject<USettings>();
 	LoadSettings();
+
+	auto GameUserSettings = UGameUserSettings::GetGameUserSettings();
+	check(GameUserSettings != nullptr);
+	GameUserSettings->ApplySettings(false);
 }
 
 void UMyGameInstance::SaveSettings()
 {
-	settings->SaveConfig();
+	Settings->SaveConfig();
 }
 
 void UMyGameInstance::LoadSettings()
 {
-	settings->LoadConfig();
+	Settings->LoadConfig();
 }
 
 UMyGameInstance* UMyGameInstance::GetMyGameInstance(const UObject* WorldContextObject)
@@ -29,16 +34,16 @@ UMyGameInstance* UMyGameInstance::GetMyGameInstance(const UObject* WorldContextO
 void UMyGameInstance::SetMusicVolume(float volume)
 {
 	check(volume >= 0 && volume <= 1);
-	settings->musicVolume = volume;
-	if (musicComponent != nullptr)
+	Settings->MusicVolume = volume;
+	if (MusicComponent != nullptr)
 	{
-		musicComponent->SetVolumeMultiplier(settings->musicVolume);
+		MusicComponent->SetVolumeMultiplier(Settings->MusicVolume);
 	}
 }
 
 float UMyGameInstance::GetMusicVolume()
 {
-	return settings->musicVolume;
+	return Settings->MusicVolume;
 }
 
 void UMyGameInstance::PlayMusic(USoundBase* Sound)
@@ -48,10 +53,10 @@ void UMyGameInstance::PlayMusic(USoundBase* Sound)
 	{
 		soundWave->VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
 	}
-	musicComponent = UGameplayStatics::SpawnSound2D(
+	MusicComponent = UGameplayStatics::SpawnSound2D(
 		this
 		, Sound
-		, settings->musicVolume
+		, Settings->MusicVolume
 		, /*PitchMultiplier =*/ 1.f
 		, /*StartTime =*/ 0.f
 		, /*ConcurrencySettings* =*/ nullptr
@@ -63,49 +68,49 @@ void UMyGameInstance::PlayMusic(USoundBase* Sound)
 void UMyGameInstance::PlayMusicInLoop(USoundBase* Sound)
 {
 	PlayMusic(Sound);
-	check(musicComponent != nullptr);
+	check(MusicComponent != nullptr);
 	GetTimerManager().SetTimer(
-		musicTimerHandle
+		MusicTimerHandle
 		, [this]()
 		{
-			if (musicComponent != nullptr)
+			if (MusicComponent != nullptr)
 			{
-				musicComponent->Play();
+				MusicComponent->Play();
 			}
 		}
-		, /*inRate =*/ musicComponent->GetSound()->GetDuration()
+		, /*inRate =*/ MusicComponent->GetSound()->GetDuration()
 		, /*InbLoop =*/ true
 	);
 }
 
 void UMyGameInstance::StopMusic()
 {
-	if (musicComponent == nullptr)
+	if (MusicComponent == nullptr)
 	{
 		return;
 	}
-	musicComponent->Stop();
-	GetTimerManager().ClearTimer(musicTimerHandle);
-	musicComponent->MarkAsGarbage();
-	musicComponent = nullptr;
+	MusicComponent->Stop();
+	GetTimerManager().ClearTimer(MusicTimerHandle);
+	MusicComponent->MarkAsGarbage();
+	MusicComponent = nullptr;
 }
 
 void UMyGameInstance::PauseMusic()
 {
-	if (musicComponent == nullptr)
+	if (MusicComponent == nullptr)
 	{
 		return;
 	}
-	musicComponent->SetPaused(true);
-	GetTimerManager().PauseTimer(musicTimerHandle);
+	MusicComponent->SetPaused(true);
+	GetTimerManager().PauseTimer(MusicTimerHandle);
 }
 
 void UMyGameInstance::ResumeMusic()
 {
-	if (musicComponent == nullptr)
+	if (MusicComponent == nullptr)
 	{
 		return;
 	}
-	musicComponent->SetPaused(false);
-	GetTimerManager().UnPauseTimer(musicTimerHandle);
+	MusicComponent->SetPaused(false);
+	GetTimerManager().UnPauseTimer(MusicTimerHandle);
 }

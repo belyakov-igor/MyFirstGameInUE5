@@ -11,7 +11,9 @@ class MYFIRSTGAMEINUE5_API UMyGameInstance : public UGameInstance
 	GENERATED_BODY()
 	
 public:
-	explicit UMyGameInstance();
+	explicit UMyGameInstance() {}
+
+	virtual void Init() override;
 
 	UFUNCTION(BlueprintCallable, Category = "Settings")
 	void SaveSettings();
@@ -20,7 +22,7 @@ public:
 	void LoadSettings();
 
 	UPROPERTY()
-	USettings* settings;
+	USettings* Settings;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MyGameInstance", meta = (WorldContext = "WorldContextObject"))
 	static UMyGameInstance* GetMyGameInstance(const UObject* WorldContextObject);
@@ -51,7 +53,7 @@ public:
 
 private:
 	UPROPERTY()
-	UAudioComponent* musicComponent = nullptr;
+	UAudioComponent* MusicComponent = nullptr;
 
-	FTimerHandle musicTimerHandle = {};
+	FTimerHandle MusicTimerHandle = {};
 };

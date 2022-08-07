@@ -13,5 +13,5 @@ public:
 	explicit USettings(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY(Config)
-	float musicVolume = 1.f;
+	float MusicVolume = 1.f;
 };

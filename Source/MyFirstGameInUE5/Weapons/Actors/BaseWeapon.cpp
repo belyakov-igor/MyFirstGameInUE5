@@ -1,6 +1,7 @@
 #include "Weapons/Actors/BaseWeapon.h"
 
 #include "Characters/PlayerCharacterBase.h"
+#include "Weapons/Components/AmmoComponent.h"
 
 #include "DrawDebugHelpers.h"
 
@@ -20,6 +21,15 @@ void ABaseWeapon::AttachToOwner(ACharacter* NewOwner)
 	check(RootComponent != nullptr);
 	SetOwner(NewOwner);
 	auto f = RootComponent->AttachToComponent(GetCharacterMesh(), AttachmentRules, HandGripSocketName);
+}
+
+FWeaponUIData ABaseWeapon::GetUIData() const
+{
+	if (auto AmmoComponent = Cast<UAmmoComponent>(FindComponentByClass(UAmmoComponent::StaticClass())); AmmoComponent != nullptr)
+	{
+		return FWeaponUIData{WeaponIcon, CrossHairIcon, true, AmmoComponent->GetArsenalAmount(), AmmoComponent->GetClipAmount()};
+	}
+	return FWeaponUIData{WeaponIcon, CrossHairIcon, false, 0, 0};
 }
 
 APlayerController* ABaseWeapon::GetPlayerController() const

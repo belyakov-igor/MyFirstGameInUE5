@@ -2,6 +2,7 @@
 
 #include "Utilities/Components/ClampedIntegerComponent.h"
 #include "Weapons/Components/WeaponManagerComponent.h"
+#include "UI/CharacterManHUDWidget.h"
 
 #include "Components/TextRenderComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -20,6 +21,7 @@ APlayerCharacterBase::APlayerCharacterBase()
 	PrimaryActorTick.bCanEverTick = true;
 
 	HealthComponent = CreateDefaultSubobject<UClampedIntegerComponent>("HealthComponent");
+	StaminaComponent = CreateDefaultSubobject<UClampedIntegerComponent>("StaminaComponent");
 	MeleeWeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>("MeleeWeaponManagerComponent");
 	MeleeWeaponManagerComponent->OnAttackFinished.BindUObject(this, &APlayerCharacterBase::OnMeleeAttackFinished);
 	RangedWeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>("RangedWeaponManagerComponent");
@@ -31,9 +33,6 @@ APlayerCharacterBase::APlayerCharacterBase()
 
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>("CameraComponent");
 	CameraComponent->SetupAttachment(SpringArmComponent);
-
-	HealthTextComponent = CreateDefaultSubobject<UTextRenderComponent>("HealthTextComponent");
-	HealthTextComponent->SetupAttachment(CameraComponent);
 
 	check(GetCharacterMovement() != nullptr);
 
@@ -53,13 +52,10 @@ void APlayerCharacterBase::BeginPlay()
 
 	OnTakeAnyDamage.AddDynamic(this, &APlayerCharacterBase::TakeAnyDamage);
 	HealthComponent->ReachedMin.AddUObject(this, &APlayerCharacterBase::Die);
-	HealthComponent->ValueChanged.AddLambda(
-		[this](float NewHealth)
-		{
-			HealthTextComponent->SetText(FText::FromString(FString::Printf(TEXT("%.0f"), NewHealth)));
-		}
-	);
 	HealthComponent->SetValue(HealthComponent->Max);
+
+	StaminaComponent->SetValue(StaminaComponent->Max);
+	StaminaComponent->ValueChanged.AddUObject(this, &APlayerCharacterBase::WaitForSomeTimeAndStartRegeneratingStaminaIfNeeded);
 
 
 	CapsuleUprightHalfHeightBackup = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
@@ -100,15 +96,28 @@ void APlayerCharacterBase::BeginPlay()
 		}
 	;
 	AimToNoAimUpdater.Callback(0.f);
+
+	if (HUDWidget != nullptr)
+	{
+		HUDWidget->UpdateWeaponAndAmmo();
+		HUDWidget->UpdateHealth();
+		HUDWidget->UpdateStamina();
+		HUDWidget->UpdateCrosshairVisibility(false);
+	}
 }
 
 void APlayerCharacterBase::PossessedBy(AController* NewController)
 {
 	Super::PossessedBy(NewController);
 
-	if (NewController != nullptr)
+	if (NewController != nullptr && Cast<APlayerController>(NewController) != nullptr)
 	{
 		UseUprightCameraPitch(NewController, true);
+		HUDWidget = CreateWidget<UCharacterManHUDWidget>(GetWorld(), HUDWidgetClass, "HUD");
+		check(HUDWidget != nullptr);
+		HUDWidget->AddToViewport();
+		HealthComponent->ValueChanged.AddLambda([this](int32, int32){ HUDWidget->UpdateHealth(); });
+		StaminaComponent->ValueChanged.AddLambda([this](int32, int32) { HUDWidget->UpdateStamina(); });
 	}
 }
 
@@ -117,6 +126,10 @@ void APlayerCharacterBase::UnPossessed()
 	Super::UnPossessed();
 
 	RestoreBackupCameraPitch();
+	if (HUDWidget != nullptr)
+	{
+		HUDWidget->RemoveFromParent();
+	}
 }
 
 // Called every frame
@@ -141,6 +154,7 @@ void APlayerCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAxis("MoveRight", this, &APlayerCharacterBase::MoveRight);
 	PlayerInputComponent->BindAxis("LookUp", this, &APlayerCharacterBase::LookUp);
 	PlayerInputComponent->BindAxis("LookRight", this, &APlayerCharacterBase::LookRight);
+	PlayerInputComponent->BindAxis("MouseWheel", this, &APlayerCharacterBase::OnMouseWheelInput);
 
 	PlayerInputComponent->BindAction("Crouch", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnCrouchButtonPressed);
 	PlayerInputComponent->BindAction("Crouch", EInputEvent::IE_Released, this, &APlayerCharacterBase::OnCrouchButtonReleased);
@@ -189,11 +203,6 @@ bool APlayerCharacterBase::AttackIsBeingPerformed() const
 	return MeleeWeaponManagerComponent->AttackIsBeingPerformed() || RangedWeaponManagerComponent->AttackIsBeingPerformed();
 }
 
-bool APlayerCharacterBase::IsInNoAimingState() const
-{
-	return AimState == &State_Aim_NoAim;
-}
-
 void APlayerCharacterBase::MoveForward(float Amount)
 {
 	auto dir = CameraComponent->GetForwardVector();
@@ -215,6 +224,22 @@ void APlayerCharacterBase::LookUp(float Amount)
 void APlayerCharacterBase::LookRight(float Amount)
 {
 	AddControllerYawInput(Amount*AimMouseSensitivityCoef);
+}
+
+void APlayerCharacterBase::OnMouseWheelInput(float Amount)
+{
+	if (Amount == 0)
+	{
+		return;
+	}
+	if (Amount > 0)
+	{
+		RangedWeaponManagerComponent->SetNextWeapon();
+	}
+	else
+	{
+		RangedWeaponManagerComponent->SetPreviousWeapon();
+	}
 }
 
 void APlayerCharacterBase::OnCrouchButtonPressed()
@@ -259,6 +284,7 @@ bool APlayerCharacterBase::RunningIsPossible() const
 		&& GetCharacterMovement()->Velocity.SquaredLength() > 2500
 		&& !MeleeWeaponManagerComponent->AttackIsBeingPerformed()
 		&& !RangedWeaponManagerComponent->AttackIsBeingPerformed()
+		&& StaminaComponent->GetValue() > 0
 	;
 }
 
@@ -292,12 +318,19 @@ void APlayerCharacterBase::FState_UprightRunning::Tick(float DeltaTime)
 {
 	if (!Character.RunningIsPossible())
 	{
+		Character.GetWorld()->GetTimerManager().ClearTimer(Character.StaminaDecreasingTimerHandle);
 		Character.SetState(Character.State_UprightNotRunning);
 	}
 }
 
 void APlayerCharacterBase::FState_UprightRunning::TakeOver()
 {
+	Character.GetWorld()->GetTimerManager().SetTimer(
+		Character.StaminaDecreasingTimerHandle
+		, [this] { Character.StaminaComponent->Decrease(Character.AmountOfStaminaDecresingOnRunning); }
+		, /*InRate*/ Character.TimeIntervalForStaminaDecresingOnRunning
+		, /*bInLoop*/ true
+	);
 	Character.GetCharacterMovement()->MaxWalkSpeed = Character.RunSpeedCoef * Character.DefaultJogSpeed;
 }
 
@@ -408,6 +441,7 @@ void APlayerCharacterBase::FState_Aim_Aim::TakeOver()
 {
 	Character.GetCharacterMovement()->bOrientRotationToMovement = false;
 	Character.GetCharacterMovement()->bUseControllerDesiredRotation = true;
+	Character.HUDWidget->UpdateCrosshairVisibility(true);
 }
 
 // } FState_Aim_Aim -------------------------------------------------------------------------------------
@@ -459,6 +493,7 @@ void APlayerCharacterBase::FState_Aim_TransitionAimToNoAim::TakeOver()
 	Rotation.Pitch = 0.f;
 	Character.AimRotationCurrent = Rotation;
 	Character.RangedWeaponManagerComponent->EndAttack();
+	Character.HUDWidget->UpdateCrosshairVisibility(false);
 }
 
 // } FState_Aim_TransitionAimToNoAim --------------------------------------------------------------------
@@ -697,6 +732,11 @@ void APlayerCharacterBase::Landed(const FHitResult& Hit)
 	);
 }
 
+void APlayerCharacterBase::OnWeaponAndAmmoChanged()
+{
+	HUDWidget->UpdateWeaponAndAmmo();
+}
+
 void APlayerCharacterBase::TakeAnyDamage(
 	AActor* DamagedActor
 	, float Damage
@@ -723,6 +763,41 @@ void APlayerCharacterBase::Die()
 	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	MeleeWeaponManagerComponent->EndAttack();
 	RangedWeaponManagerComponent->EndAttack();
+	if (IsPlayerControlled())
+	{
+		HUDWidget->RemoveFromParent();
+	}
+}
+
+void APlayerCharacterBase::WaitForSomeTimeAndStartRegeneratingStaminaIfNeeded(int32 OldStamina, int32 NewStamina)
+{
+	if (OldStamina <= NewStamina)
+	{
+		return;
+	}
+	GetWorld()->GetTimerManager().SetTimer(
+		StaminaRegenerationTimerHandle
+		,
+			[this]
+			{
+				GetWorld()->GetTimerManager().SetTimer(
+					StaminaRegenerationTimerHandle
+					, 
+						[this]
+						{
+							StaminaComponent->Increase(AmountOfStaminaRegeneration);
+							if (StaminaComponent->GetValue() == StaminaComponent->Max)
+							{
+								GetWorld()->GetTimerManager().ClearTimer(StaminaRegenerationTimerHandle);
+							}
+						}
+					, TimeIntervalForStaminaRegeneration
+					, /*bInLoop*/ true
+				);
+			}
+		, TimeBeforeStaminaRegeneration
+		, /*bInLoop*/ false
+	);
 }
 
 void APlayerCharacterBase::RotateSelfIfNeeded(float DeltaTime)
@@ -752,4 +827,27 @@ void APlayerCharacterBase::SmoothlyOrientSelfToWorldYawValue(float WorldYawValue
 void APlayerCharacterBase::StopSmoothlyOrientSelfToWorldYawValue()
 {
 	bSmoothlyOrientSelf_Required = false;
+}
+
+bool APlayerCharacterBase::GetRangedWeaponUIData(struct FWeaponUIData& RangedFWeaponUIData) const
+{
+	auto Weapon = RangedWeaponManagerComponent->GetCurrentWeapon();
+	if (Weapon == nullptr)
+	{
+		return false;
+	}
+	RangedFWeaponUIData = Weapon->GetUIData();
+	return true;
+}
+
+void APlayerCharacterBase::GetHealthData(int32& Health, int32& MaxHealth) const
+{
+	Health = HealthComponent->GetValue();
+	MaxHealth = HealthComponent->Max;
+}
+
+void APlayerCharacterBase::GetStaminaData(int32& Stamina, int32& MaxStamina) const
+{
+	Stamina = StaminaComponent->GetValue();
+	MaxStamina = StaminaComponent->Max;
 }

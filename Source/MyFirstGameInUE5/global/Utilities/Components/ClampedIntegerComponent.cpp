@@ -16,8 +16,14 @@ void UClampedIntegerComponent::BeginPlay()
 
 void UClampedIntegerComponent::SetValue(int32 NewValue)
 {
-	Value = FMath::Clamp(NewValue, Min, Max);
-	ValueChanged.Broadcast(Value);
+	NewValue = FMath::Clamp(NewValue, Min, Max);
+	if (Value == NewValue)
+	{
+		return;
+	}
+	auto OldValue = Value;
+	Value = NewValue;
+	ValueChanged.Broadcast(OldValue, Value);
 
 	if (Value == Min)
 	{
@@ -37,7 +43,7 @@ int32 UClampedIntegerComponent::GetValue() const
 void UClampedIntegerComponent::UClampedIntegerComponent::Increase(int32 Delta)
 {
 	checkf(Delta >= 0, TEXT("Delta must be non-negative."))
-	if (Delta > 0 && Value != Max)
+	if (Delta > 0)
 	{
 		SetValue(Value + Delta);
 	}
@@ -46,7 +52,7 @@ void UClampedIntegerComponent::UClampedIntegerComponent::Increase(int32 Delta)
 void UClampedIntegerComponent::Decrease(int32 Delta)
 {
 	checkf(Delta >= 0, TEXT("Delta must be non-negative."))
-	if (Delta > 0 && Value != Min)
+	if (Delta > 0)
 	{
 		SetValue(Value - Delta);
 	}

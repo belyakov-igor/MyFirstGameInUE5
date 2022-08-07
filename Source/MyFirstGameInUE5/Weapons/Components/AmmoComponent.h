@@ -19,7 +19,7 @@ public:
 	UAmmoComponent();
 
 	// Arsenal -----------------------------------------------------------------------
-	FInt32ValueMulticastSignature ArsenalChanged;
+	FInt32Int32MulticastSignature ArsenalChanged;
 	FSignalMulticastSignature ArsenalIsFull;
 	FSignalMulticastSignature ArsenalIsEmpty;
 
@@ -45,7 +45,7 @@ public:
 	int32 DecreaseArsenal(int32 Amount);
 
 	// Clip --------------------------------------------------------------------------
-	FInt32ValueMulticastSignature ClipChanged;
+	FInt32Int32MulticastSignature ClipChanged;
 	FSignalMulticastSignature ClipIsFull;
 	FSignalMulticastSignature ClipIsEmpty;
 
@@ -87,16 +87,16 @@ private:
 		, int32& Ammo
 		, int32 Capacity
 		, FSignalMulticastSignature& ReachedMax
-		, FInt32ValueMulticastSignature& AmountChanged
+		, FInt32Int32MulticastSignature& AmountChanged
 	);
 	int32 Decrease(
 		int32 Amount
 		, int32& Ammo
 		, FSignalMulticastSignature& ReachedMin
-		, FInt32ValueMulticastSignature& AmountChanged
+		, FInt32Int32MulticastSignature& AmountChanged
 	);
 
+	void OnReloadAnimFinished(class USkeletalMeshComponent* Mesh);
 
-	FTimerHandle SomePoorSubstituteForReloadAnimationTimerHandle;
 	void ChangeClip();
 };

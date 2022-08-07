@@ -15,7 +15,7 @@ class MYFIRSTGAMEINUE5_API UClampedIntegerComponent : public UActorComponent
 public:	
 	UClampedIntegerComponent();
 
-	FInt32ValueMulticastSignature ValueChanged;
+	FInt32Int32MulticastSignature ValueChanged;
 	FSignalMulticastSignature ReachedMin;
 	FSignalMulticastSignature ReachedMax;
 

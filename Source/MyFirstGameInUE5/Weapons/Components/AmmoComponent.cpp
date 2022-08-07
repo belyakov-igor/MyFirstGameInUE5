@@ -1,7 +1,12 @@
 #include "Weapons/Components/AmmoComponent.h"
 
-#include "Characters/PlayerCharacterBase.h"
+#include "Global/Utilities/MyUtilities.h"
 #include "Weapons/Actors/BaseWeapon.h"
+#include "Weapons/Components/WeaponManagerComponent.h"
+#include "Weapons/WeaponUtilities.h"
+#include "Animation/ReloadFinishedAnimNotify.h"
+
+#include "GameFramework/Character.h"
 
 UAmmoComponent::UAmmoComponent()
 {
@@ -14,6 +19,9 @@ void UAmmoComponent::BeginPlay()
 
 	ClipAmmo = ClipCapacity;
 	ArsenalAmmo = ArsenalCapacity;
+
+	auto ReloadFinishedNotify = UWeaponUtilities::FindNotifyByClass<UReloadFinishedAnimNotify>(ReloadAnimMontage);
+	ReloadFinishedNotify->OnNotified.AddUObject(this, &UAmmoComponent::OnReloadAnimFinished);
 }
 
 int32 UAmmoComponent::Increase(
@@ -21,7 +29,7 @@ int32 UAmmoComponent::Increase(
 	, int32& Ammo
 	, int32 Capacity
 	, FSignalMulticastSignature& IsFull
-	, FInt32ValueMulticastSignature& Changed
+	, FInt32Int32MulticastSignature& Changed
 )
 {
 	checkf(Amount >= 0, TEXT("Amount must be non-negative"));
@@ -35,6 +43,7 @@ int32 UAmmoComponent::Increase(
 		Ret = Amount;
 		return Ret;
 	}
+	auto OldAmmo = Ammo;
 	Ammo += Amount;
 	if (Ammo >= Capacity)
 	{
@@ -42,7 +51,7 @@ int32 UAmmoComponent::Increase(
 		Ammo = Capacity;
 		IsFull.Broadcast();
 	}
-	Changed.Broadcast(Ammo);
+	Changed.Broadcast(OldAmmo, Ammo);
 	return Ret;
 }
 
@@ -50,7 +59,7 @@ int32 UAmmoComponent::Decrease(
 	int32 Amount
 	, int32& Ammo
 	, FSignalMulticastSignature& IsEmpty
-	, FInt32ValueMulticastSignature& Changed
+	, FInt32Int32MulticastSignature& Changed
 )
 {
 	checkf(Amount >= 0, TEXT("Amount must be non-negative"));
@@ -64,6 +73,7 @@ int32 UAmmoComponent::Decrease(
 		Ret = Amount;
 		return Ret;
 	}
+	auto OldAmmo = Ammo;
 	Ammo -= Amount;
 	if (Ammo <= 0)
 	{
@@ -71,7 +81,7 @@ int32 UAmmoComponent::Decrease(
 		Ammo = 0;
 		IsEmpty.Broadcast();
 	}
-	Changed.Broadcast(Ammo);
+	Changed.Broadcast(OldAmmo, Ammo);
 	return Ret;
 }
 
@@ -98,50 +108,57 @@ int32 UAmmoComponent::DecreaseClip(int32 Amount)
 
 void UAmmoComponent::Reload()
 {
-	if (ReloadAnimMontage != nullptr)
+	if (ReloadAnimMontage == nullptr)
 	{
-		checkf(false, TEXT("Not implemented"));
+		checkf(false, TEXT("Reload anim montage should be set."));
 		return;
 	}
 
-	// Do some poor substitute for reload animation
 	auto Weapon = Cast<ABaseWeapon>(GetOwner());
 	check(Weapon != nullptr);
-	auto Character = Cast<APlayerCharacterBase>(Weapon->GetOwner());
+	auto Character = Cast<ACharacter>(Weapon->GetOwner());
 	check(Character != nullptr);
-	Character->AnimationSet = EPlayerCharacterBaseAnimationSet::Unarmed;
 
-	GetWorld()->GetTimerManager().SetTimer(
-		SomePoorSubstituteForReloadAnimationTimerHandle
-		, [this]
-			{
-				auto Weapon = Cast<ABaseWeapon>(GetOwner());
-				if (Weapon == nullptr)
-				{
-					return;
-				}
+	Character->PlayAnimMontage(ReloadAnimMontage);
+}
 
-				Weapon->SwitchCharacterToAnimationSet();
-				GetWorld()->GetTimerManager().SetTimer(
-					SomePoorSubstituteForReloadAnimationTimerHandle
-					, this
-					, &UAmmoComponent::ChangeClip
-					, /*InRate*/ 0.25f
-					, /*bInLoop*/ false
-				);
-			}
-		, /*InRate*/ 0.25f
-		, /*bInLoop*/ false
-	);
+void UAmmoComponent::OnReloadAnimFinished(USkeletalMeshComponent* Mesh)
+{
+	auto Weapon = Cast<ABaseWeapon>(GetOwner());
+	check(Weapon != nullptr);
+	auto Character = Cast<ACharacter>(Weapon->GetOwner());
+	check(Character != nullptr);
+	if (Mesh != Character->GetMesh())
+	{
+		return;
+	}
+	bool IsThisWeapon = false;
+	for (auto WeaponManagerComponent_ : Character->GetComponentsByClass(UWeaponManagerComponent::StaticClass()))
+	{
+		auto WeaponManagerComponent = Cast<UWeaponManagerComponent>(WeaponManagerComponent_);
+		check(WeaponManagerComponent != nullptr);
+		if (WeaponManagerComponent->GetCurrentWeapon() == Weapon)
+		{
+			IsThisWeapon = true;
+		}
+	}
+	if (!IsThisWeapon)
+	{
+		return;
+	}
+	ChangeClip();
+	Character->StopAnimMontage(ReloadAnimMontage);
 }
 
 void UAmmoComponent::ChangeClip()
 {
+	auto OldClipAmmo = ClipAmmo;
+	auto OldArsenalAmmo = ArsenalAmmo;
 	ClipAmmo = FMath::Min(ClipCapacity, ArsenalAmmo);
 	ArsenalAmmo -= ClipAmmo;
 
-	ArsenalChanged.Broadcast(ArsenalAmmo);
-	ClipChanged.Broadcast(ClipAmmo);
+	ArsenalChanged.Broadcast(OldArsenalAmmo, ArsenalAmmo);
+	ClipChanged.Broadcast(OldClipAmmo, ClipAmmo);
 	if (ArsenalAmmo == 0)
 	{
 		ArsenalIsEmpty.Broadcast();

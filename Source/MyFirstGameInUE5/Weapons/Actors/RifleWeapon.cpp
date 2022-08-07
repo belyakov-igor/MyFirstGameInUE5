@@ -33,7 +33,7 @@ void ARifleWeapon::BeginAttack()
 		FireTimerHandle
 		, [this]
 			{
-				if (AmmoComponent->DecreaseClip(1) != 0)
+				if (AmmoComponent->GetClipAmount() == 0)
 				{
 					return;
 				}
@@ -47,6 +47,7 @@ void ARifleWeapon::BeginAttack()
 					? CrouchFireAnimMontage
 					: UprightFireAnimMontage
 				);
+				AmmoComponent->DecreaseClip(1);
 				FHitResult HitResult = MakeTrace();
 				if (HitResult.bBlockingHit && HitResult.GetActor())
 				{

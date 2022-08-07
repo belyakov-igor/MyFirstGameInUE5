@@ -1,6 +1,5 @@
 #pragma once
 
-#include "Global/Utilities/MyUtilities.h"
 #include "Weapons/Actors/BaseWeapon.h"
 
 #include "CoreMinimal.h"
@@ -34,7 +33,16 @@ public:
 	bool SetCurrentWeapon(int32 index);
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void SetNextWeapon();
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	void SetPreviousWeapon();
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	int32 GetCurrentWeaponIndex() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	ABaseWeapon* GetCurrentWeapon() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void Reload();
