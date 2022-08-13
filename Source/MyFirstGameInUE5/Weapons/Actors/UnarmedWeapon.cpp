@@ -1,9 +1,9 @@
 #include "Weapons/Actors/UnarmedWeapon.h"
 
-#include "Weapons/WeaponUtilities.h"
 #include "Animation/UnarmedHitAnimNotify.h"
 #include "Animation/AttackEndedAnimNotify.h"
 #include "Characters/PlayerCharacterBase.h"
+#include "Global/Utilities/Components/DamageTakerComponent.h"
 
 #include "Animation/AnimMontage.h"
 #include "GameFramework/CharacterMovementComponent.h"
@@ -15,7 +15,7 @@
 
 void AUnarmedWeapon::BeginAttack()
 {
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
+	auto Character = Cast<ACharacter>(GetOwner());
 	if (AttackAnimMontage == nullptr || Character == nullptr)
 	{
 		checkNoEntry();
@@ -25,7 +25,6 @@ void AUnarmedWeapon::BeginAttack()
 	bAttackIsBeingPerformed = true;
 	Character->GetCharacterMovement()->MovementMode = MOVE_None;
 	Character->GetCharacterMovement()->Velocity = FVector(0.f, 0.f, 0.f);
-	Character->SmoothlyOrientSelfToWorldYawValue(Character->CameraComponent->GetComponentRotation().Yaw);
 }
 
 void AUnarmedWeapon::BeginPlay()
@@ -37,8 +36,8 @@ void AUnarmedWeapon::BeginPlay()
 
 void AUnarmedWeapon::InitAnimations()
 {
-	auto HitNotify = UWeaponUtilities::FindNotifyByClass<UUnarmedHitAnimNotify>(AttackAnimMontage);
-	auto AttackFinishedNotify = UWeaponUtilities::FindNotifyByClass<UAttackEndedAnimNotify>(AttackAnimMontage);
+	auto HitNotify = UMyUtilities::FindNotifyByClass<UUnarmedHitAnimNotify>(AttackAnimMontage);
+	auto AttackFinishedNotify = UMyUtilities::FindNotifyByClass<UAttackEndedAnimNotify>(AttackAnimMontage);
 	if (HitNotify == nullptr || AttackFinishedNotify == nullptr)
 	{
 		checkf(false, TEXT("Attack finished notify or hit notify is missing on anim montage %s"), *AttackAnimMontage->GetName());
@@ -72,7 +71,7 @@ void AUnarmedWeapon::OnHitNotify(USkeletalMeshComponent* Mesh)
 	CapsuleEnd = CapsuleBegin + FVector::DotProduct(CapsuleEnd - CapsuleBegin, ForwardVector) * ForwardVector;
 	FHitResult HitResult;
 	if (
-		UKismetSystemLibrary::SphereTraceSingleForObjects
+		!UKismetSystemLibrary::SphereTraceSingleForObjects
 		(
 			/*WorldContextObject*/ GetWorld()
 			, /*Start*/ CapsuleBegin
@@ -80,7 +79,7 @@ void AUnarmedWeapon::OnHitNotify(USkeletalMeshComponent* Mesh)
 			, /*Radius*/ TraceSphereRadius
 			, /*ObjectTypes*/ TArray{ TEnumAsByte(UEngineTypes::ConvertToObjectType(ECC_Pawn)) }
 			, /*bTraceComplex*/ false
-			, /*ActorsToIgnore*/ { Character }
+			, /*ActorsToIgnore*/{ Character }
 			, /*DrawDebugType*/ EDrawDebugTrace::Type::None //ForDuration
 			, /*OutHit*/ HitResult
 			, /*bIgnoreSelf*/ true
@@ -90,16 +89,10 @@ void AUnarmedWeapon::OnHitNotify(USkeletalMeshComponent* Mesh)
 		)
 	)
 	{
-		HitResult.GetActor()->TakeDamage(Damage, FDamageEvent{}, GetPlayerController(), this);
-		if (auto HitCharacter = Cast<ACharacter>(HitResult.GetActor()); HitCharacter != nullptr)
-		{
-			HitCharacter->LaunchCharacter(
-				ForwardVector * PunchMomentum
-				, /*bXYOverride*/ false
-				, /*bZOverride*/ false
-			);
-		}
+		return;
 	}
+
+	UDamageTakerComponent::InflictBluntHitDamage(HitResult.GetActor(), Damage, ForwardVector * PunchMomentum);
 }
 
 void AUnarmedWeapon::OnAttackFinishedNotify(USkeletalMeshComponent* Mesh)
@@ -118,11 +111,4 @@ void AUnarmedWeapon::OnAttackFinishedNotify(USkeletalMeshComponent* Mesh)
 	Character->GetCharacterMovement()->MovementMode = MOVE_Walking;
 	bAttackIsBeingPerformed = false;
 	OnAttackFinished.Execute();
-}
-
-void AUnarmedWeapon::SwitchCharacterToAnimationSet() const
-{
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
-	check(Character != nullptr);
-	Character->AnimationSet = EPlayerCharacterBaseAnimationSet::Unarmed;
 }

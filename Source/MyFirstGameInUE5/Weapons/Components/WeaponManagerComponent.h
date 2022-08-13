@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Global/Utilities/MyUtilities.h"
 #include "Weapons/Actors/BaseWeapon.h"
 
 #include "CoreMinimal.h"
@@ -17,20 +18,19 @@ class MYFIRSTGAMEINUE5_API UWeaponManagerComponent : public UActorComponent
 public:
 	UWeaponManagerComponent();
 
-	/** Weapons that the owner character currently has. Supposed to
-	 *  be added during gameplay as well as in the BeginPlay()
+	static constexpr int32 MinWeaponSlot = 0;
+	static constexpr int32 MaxWeaponSlot = 9;
+
+	/** 9 slots with weapons that the owner character currently has.
+	 *  Empty slots contain nullptr.
+	 *  Weapons are supposed to be added to their slots during gameplay.
 	 */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Weapon")
 	TArray<ABaseWeapon*> Weapons;
 
-	/** What weapons should be spawned and added to Weapons array in the BeginPlay() */
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon")
-	TArray<TSubclassOf<ABaseWeapon>> DefaultWeapons;
-
-
 	/** Return true if succeeded*/
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	bool SetCurrentWeapon(int32 index);
+	bool SetCurrentWeaponSlot(int32 Slot);
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void SetNextWeapon();
@@ -50,23 +50,23 @@ public:
 	void BeginAttack();
 	void EndAttack();
 
-	void BeginAim();
-	void EndAim();
+	void SetWeaponVisibility(bool Visible);
 
 	void AddWeapon(ABaseWeapon* Weapon);
 
 	bool AttackIsBeingPerformed() const;
 
-	FSignalSignature OnAttackFinished;
+	void SetIsCrouching(bool IsCrouching);
 
-	bool HasValidWeapon() const;
+	FSignalSignature OnAttackFinished;
+	FSignalSignature OnWeaponAndAmmoChanged;
 
 protected:
 	virtual void BeginPlay() override;
 
 private:
-	ABaseWeapon* CurrentWeapon() const;
 	void SpawnAndAddDefaultWeapons();
 
-	int32 CurrentWeaponIndex = 0;
+	int32 CurrentWeaponSlot = 1;
+	bool bWeaponIsVisible = false;
 };

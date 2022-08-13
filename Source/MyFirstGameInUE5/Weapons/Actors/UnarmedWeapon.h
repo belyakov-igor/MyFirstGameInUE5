@@ -29,10 +29,9 @@ public:
 	float Damage = 10.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
-	float PunchMomentum = 300.f;
+	float PunchMomentum = 24000.f; // kg * cm / s
 
 	virtual void BeginAttack() override;
-	virtual void SwitchCharacterToAnimationSet() const override;
 
 protected:
 	virtual void BeginPlay() override;

@@ -16,7 +16,8 @@ public:
 	virtual void BeginAttack() override;
 	virtual void EndAttack() override;
 
-	virtual void SwitchCharacterToAnimationSet() const override;
+	virtual EPlayerCharacterBaseAnimationSet GetCharacterAnimationSet() const override
+    { return EPlayerCharacterBaseAnimationSet::Rifle; }
 
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     class UAnimMontage* CrouchFireAnimMontage;
@@ -31,7 +32,7 @@ public:
     float TimeBetweenShots = 0.15f;
 
     UPROPERTY(EditDefaultsOnly, Category = "General")
-    float Damage = 10.f;
+    float Damage = 40.f;
 
 protected:
     virtual void BeginPlay() override;

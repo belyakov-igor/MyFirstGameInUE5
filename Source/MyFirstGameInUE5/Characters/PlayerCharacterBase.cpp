@@ -3,6 +3,8 @@
 #include "Utilities/Components/ClampedIntegerComponent.h"
 #include "Weapons/Components/WeaponManagerComponent.h"
 #include "UI/CharacterManHUDWidget.h"
+#include "Interaction/InteractingComponent.h"
+#include "Global/Utilities/Components/DamageTakerComponent.h"
 
 #include "Components/TextRenderComponent.h"
 #include "GameFramework/SpringArmComponent.h"
@@ -20,11 +22,11 @@ APlayerCharacterBase::APlayerCharacterBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
 
-	HealthComponent = CreateDefaultSubobject<UClampedIntegerComponent>("HealthComponent");
-	StaminaComponent = CreateDefaultSubobject<UClampedIntegerComponent>("StaminaComponent");
-	MeleeWeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>("MeleeWeaponManagerComponent");
+	HealthComponent = CreateDefaultSubobject<UClampedIntegerComponent>(HealthComponentName);
+	StaminaComponent = CreateDefaultSubobject<UClampedIntegerComponent>(StaminaComponentName);
+	MeleeWeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>(MeleeWeaponManagerComponentName);
 	MeleeWeaponManagerComponent->OnAttackFinished.BindUObject(this, &APlayerCharacterBase::OnMeleeAttackFinished);
-	RangedWeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>("RangedWeaponManagerComponent");
+	RangedWeaponManagerComponent = CreateDefaultSubobject<UWeaponManagerComponent>(RangedWeaponManagerComponentName);
 	RangedWeaponManagerComponent->OnAttackFinished.BindUObject(this, &APlayerCharacterBase::OnRangedAttackFinished);
 
 	SpringArmComponent = CreateDefaultSubobject<USpringArmComponent>("SpringArmComponent");
@@ -34,9 +36,15 @@ APlayerCharacterBase::APlayerCharacterBase()
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>("CameraComponent");
 	CameraComponent->SetupAttachment(SpringArmComponent);
 
+	InteractingComponent = CreateDefaultSubobject<UInteractingComponent>("InteractingComponent");
+	InteractingComponent->SetupAttachment(CameraComponent);
+
+	DamageTakerComponent = CreateDefaultSubobject<UDamageTakerComponent>("DamageTakerComponent");
+
 	check(GetCharacterMovement() != nullptr);
 
 	GetCharacterMovement()->NavAgentProps.bCanCrouch = false;
+	SetMovementSettingsForNotRunning();
 
 	SetState(State_UprightNotRunning);
 	SetAimState(State_Aim_NoAim);
@@ -57,6 +65,8 @@ void APlayerCharacterBase::BeginPlay()
 	StaminaComponent->SetValue(StaminaComponent->Max);
 	StaminaComponent->ValueChanged.AddUObject(this, &APlayerCharacterBase::WaitForSomeTimeAndStartRegeneratingStaminaIfNeeded);
 
+	RangedWeaponManagerComponent->OnWeaponAndAmmoChanged.BindUObject(this, &APlayerCharacterBase::OnWeaponAndAmmoChanged);
+
 
 	CapsuleUprightHalfHeightBackup = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
 	SpringArmSocketOffsetZBackup = SpringArmComponent->SocketOffset.Z;
@@ -73,6 +83,8 @@ void APlayerCharacterBase::BeginPlay()
 			)
 			{
 				StopAnimMontage(GetCurrentMontage());
+				MeleeWeaponManagerComponent->SetIsCrouching(Coef >= 0.5f);
+				RangedWeaponManagerComponent->SetIsCrouching(Coef >= 0.5f);
 			}
 			CrouchCoef = Coef;
 			SetSpringArmRelativeZ(Coef);
@@ -103,6 +115,7 @@ void APlayerCharacterBase::BeginPlay()
 		HUDWidget->UpdateHealth();
 		HUDWidget->UpdateStamina();
 		HUDWidget->UpdateCrosshairVisibility(false);
+		InteractingComponent->ChangeHUDText.AddUObject(HUDWidget, &UCharacterManHUDWidget::ChangeInteractingHUDText);
 	}
 }
 
@@ -166,11 +179,18 @@ void APlayerCharacterBase::SetupPlayerInputComponent(UInputComponent* PlayerInpu
 	PlayerInputComponent->BindAction("Aim", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::BeginAim);
 	PlayerInputComponent->BindAction("Aim", EInputEvent::IE_Released, this, &APlayerCharacterBase::EndAim);
 	PlayerInputComponent->BindAction("Reload", EInputEvent::IE_Pressed, RangedWeaponManagerComponent, &UWeaponManagerComponent::Reload);
+	PlayerInputComponent->BindAction("Interact", EInputEvent::IE_Pressed, InteractingComponent, &UInteractingComponent::Interact);
 
 	PlayerInputComponent->BindAction("Weapon 1", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon1Pressed);
 	PlayerInputComponent->BindAction("Weapon 2", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon2Pressed);
 	PlayerInputComponent->BindAction("Weapon 3", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon3Pressed);
 	PlayerInputComponent->BindAction("Weapon 4", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon4Pressed);
+	PlayerInputComponent->BindAction("Weapon 5", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon5Pressed);
+	PlayerInputComponent->BindAction("Weapon 6", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon6Pressed);
+	PlayerInputComponent->BindAction("Weapon 7", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon7Pressed);
+	PlayerInputComponent->BindAction("Weapon 8", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon8Pressed);
+	PlayerInputComponent->BindAction("Weapon 9", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon9Pressed);
+	PlayerInputComponent->BindAction("Weapon 0", EInputEvent::IE_Pressed, this, &APlayerCharacterBase::OnWeapon0Pressed);
 }
 
 bool APlayerCharacterBase::IsInRunState() const
@@ -270,10 +290,16 @@ void APlayerCharacterBase::OnJumpButtonPressed()
 	}
 }
 
-void APlayerCharacterBase::OnWeapon1Pressed() { RangedWeaponManagerComponent->SetCurrentWeapon(0); }
-void APlayerCharacterBase::OnWeapon2Pressed() { RangedWeaponManagerComponent->SetCurrentWeapon(1); }
-void APlayerCharacterBase::OnWeapon3Pressed() { RangedWeaponManagerComponent->SetCurrentWeapon(2); }
-void APlayerCharacterBase::OnWeapon4Pressed() { RangedWeaponManagerComponent->SetCurrentWeapon(3); }
+void APlayerCharacterBase::OnWeapon1Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(1); }
+void APlayerCharacterBase::OnWeapon2Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(2); }
+void APlayerCharacterBase::OnWeapon3Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(3); }
+void APlayerCharacterBase::OnWeapon4Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(4); }
+void APlayerCharacterBase::OnWeapon5Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(5); }
+void APlayerCharacterBase::OnWeapon6Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(6); }
+void APlayerCharacterBase::OnWeapon7Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(7); }
+void APlayerCharacterBase::OnWeapon8Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(8); }
+void APlayerCharacterBase::OnWeapon9Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(9); }
+void APlayerCharacterBase::OnWeapon0Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(0); }
 
 bool APlayerCharacterBase::RunningIsPossible() const
 {
@@ -319,6 +345,7 @@ void APlayerCharacterBase::FState_UprightRunning::Tick(float DeltaTime)
 	if (!Character.RunningIsPossible())
 	{
 		Character.GetWorld()->GetTimerManager().ClearTimer(Character.StaminaDecreasingTimerHandle);
+		Character.SetMovementSettingsForNotRunning();
 		Character.SetState(Character.State_UprightNotRunning);
 	}
 }
@@ -332,6 +359,7 @@ void APlayerCharacterBase::FState_UprightRunning::TakeOver()
 		, /*bInLoop*/ true
 	);
 	Character.GetCharacterMovement()->MaxWalkSpeed = Character.RunSpeedCoef * Character.DefaultJogSpeed;
+	Character.SetMovementSettingsForRunning();
 }
 
 // } FState_UprightRunning ------------------------------------------------------------------------------
@@ -410,7 +438,7 @@ void APlayerCharacterBase::FState_Aim_NoAim::Tick(float DeltaTime)
 {
 	if (
 		Character.Cravings.bWantsToAim
-		&& Character.RangedWeaponManagerComponent->HasValidWeapon()
+		&& Character.RangedWeaponManagerComponent->GetCurrentWeapon() != nullptr
 		&& !Character.MeleeWeaponManagerComponent->AttackIsBeingPerformed()
 	)
 	{
@@ -465,7 +493,10 @@ void APlayerCharacterBase::FState_Aim_TransitionNoAimToAim::Tick(float DeltaTime
 void APlayerCharacterBase::FState_Aim_TransitionNoAimToAim::TakeOver()
 {
 	Character.AimRotationCurrent = Character.GetCapsuleComponent()->GetComponentRotation();
-	Character.RangedWeaponManagerComponent->BeginAim();
+	Character.RangedWeaponManagerComponent->SetWeaponVisibility(true);
+	auto Weapon = Character.RangedWeaponManagerComponent->GetCurrentWeapon();
+	check(Weapon != nullptr);
+	Character.AnimationSet = Weapon->GetCharacterAnimationSet();
 }
 
 // } FState_Aim_TransitionNoAimToAim --------------------------------------------------------------------
@@ -482,7 +513,8 @@ void APlayerCharacterBase::FState_Aim_TransitionAimToNoAim::Tick(float DeltaTime
 	}
 	if (Character.AimToNoAimUpdater.Update(-DeltaTime) == ETransitionFinished::Yes)
 	{
-		Character.RangedWeaponManagerComponent->EndAim();
+		Character.RangedWeaponManagerComponent->SetWeaponVisibility(false);
+		Character.AnimationSet = EPlayerCharacterBaseAnimationSet::Unarmed;
 		Character.SetAimState(Character.State_Aim_NoAim);
 	}
 }
@@ -735,6 +767,13 @@ void APlayerCharacterBase::Landed(const FHitResult& Hit)
 void APlayerCharacterBase::OnWeaponAndAmmoChanged()
 {
 	HUDWidget->UpdateWeaponAndAmmo();
+
+	if (AimState != &State_Aim_NoAim)
+	{
+		auto Weapon = RangedWeaponManagerComponent->GetCurrentWeapon();
+		check(Weapon != nullptr);
+		AnimationSet = Weapon->GetCharacterAnimationSet();
+	}
 }
 
 void APlayerCharacterBase::TakeAnyDamage(
@@ -829,25 +868,28 @@ void APlayerCharacterBase::StopSmoothlyOrientSelfToWorldYawValue()
 	bSmoothlyOrientSelf_Required = false;
 }
 
-bool APlayerCharacterBase::GetRangedWeaponUIData(struct FWeaponUIData& RangedFWeaponUIData) const
+void APlayerCharacterBase::SetMovementSettingsForRunning()
 {
-	auto Weapon = RangedWeaponManagerComponent->GetCurrentWeapon();
-	if (Weapon == nullptr)
+	GetCharacterMovement()->BrakingFrictionFactor = 0.f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 1024.f;
+}
+
+void APlayerCharacterBase::SetMovementSettingsForNotRunningImpl()
+{
+	GetCharacterMovement()->BrakingFrictionFactor = 2.f;
+	GetCharacterMovement()->BrakingDecelerationWalking = 2048.f;
+}
+
+void APlayerCharacterBase::SetMovementSettingsForNotRunning()
+{
+	if (GetWorld() == nullptr)
 	{
-		return false;
+		return;
 	}
-	RangedFWeaponUIData = Weapon->GetUIData();
-	return true;
-}
-
-void APlayerCharacterBase::GetHealthData(int32& Health, int32& MaxHealth) const
-{
-	Health = HealthComponent->GetValue();
-	MaxHealth = HealthComponent->Max;
-}
-
-void APlayerCharacterBase::GetStaminaData(int32& Stamina, int32& MaxStamina) const
-{
-	Stamina = StaminaComponent->GetValue();
-	MaxStamina = StaminaComponent->Max;
+	GetWorld()->GetTimerManager().SetTimer(
+		MovementSettingsForRunningTimerHandle
+		, this
+		, &APlayerCharacterBase::SetMovementSettingsForNotRunningImpl
+		, DelayForSetMovementSettingsForNotRunning
+	);
 }

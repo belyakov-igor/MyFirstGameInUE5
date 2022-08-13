@@ -1,7 +1,6 @@
 #include "WeaponManagerComponent.h"
 
 #include "Weapons/Actors/BaseWeapon.h"
-#include "Characters/PlayerCharacterBase.h"
 #include "Weapons/Components/AmmoComponent.h"
 
 #include "GameFramework/Character.h"
@@ -9,23 +8,33 @@
 UWeaponManagerComponent::UWeaponManagerComponent()
 {
 	PrimaryComponentTick.bCanEverTick = false;
+
+	Weapons.Init(nullptr, MaxWeaponSlot - MinWeaponSlot + 1);
 }
 
 void UWeaponManagerComponent::BeginPlay()
 {
 	Super::BeginPlay();
-
-	SpawnAndAddDefaultWeapons();
 }
 
 void UWeaponManagerComponent::AddWeapon(ABaseWeapon* Weapon)
 {
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
+	auto Character = Cast<ACharacter>(GetOwner());
 	if (Weapon == nullptr || Character == nullptr)
 	{
 		return;
 	}
-	Weapons.Add(Weapon);
+	checkf(
+		Weapon->Slot >= MinWeaponSlot && Weapon->Slot <= MaxWeaponSlot
+		, TEXT("Weapon slot is out of range [%d, %d]"), MinWeaponSlot, MaxWeaponSlot
+	);
+	check (Weapons.Num() == MaxWeaponSlot - MinWeaponSlot + 1);
+	uint32 SlotIndex = Weapon->Slot - MinWeaponSlot;
+	if (Weapons[SlotIndex] != nullptr)
+	{
+		checkf(false, TEXT("Replacing weapon in a slot is not implemented"));
+	}
+	Weapons[SlotIndex] = Weapon;
 	Weapon->AttachToOwner(Character);
 	Weapon->OnAttackFinished.BindLambda([this]{ OnAttackFinished.Execute(); });
 	if (Weapon->WeaponMesh != nullptr)
@@ -36,89 +45,106 @@ void UWeaponManagerComponent::AddWeapon(ABaseWeapon* Weapon)
 	{
 		auto Lambda = [this](int32, int32)
 		{
-			auto Character = Cast<APlayerCharacterBase>(GetOwner());
-			if (Character != nullptr)
-			{
-				Character->OnWeaponAndAmmoChanged();
-			}
+			OnWeaponAndAmmoChanged.Execute();
 		};
 		AmmoComponent->ArsenalChanged.AddLambda(Lambda);
 		AmmoComponent->ClipChanged.AddLambda(Lambda);
 	}
+
+	bool bOnWeaponAndAmmoChangedSignalNeeded = CurrentWeaponSlot == SlotIndex;
+	if (GetCurrentWeapon() == nullptr)
+	{
+		SetCurrentWeaponSlot(SlotIndex);
+	}
+	if (bOnWeaponAndAmmoChangedSignalNeeded)
+	{
+		OnWeaponAndAmmoChanged.Execute();
+	}
 }
 
-bool UWeaponManagerComponent::SetCurrentWeapon(int32 index)
+bool UWeaponManagerComponent::SetCurrentWeaponSlot(int32 Slot)
 {
-	checkf(index >= 0, TEXT("Index cannot be negative"));
-	if (index >= Weapons.Num())
+	checkf(
+		Slot >= MinWeaponSlot && Slot <= MaxWeaponSlot
+		, TEXT("Weapon slot is out of range [%d, %d]"), MinWeaponSlot, MaxWeaponSlot
+	);
+	if (Weapons[Slot] == nullptr)
 	{
 		return false;
 	}
-	
-	if (CurrentWeaponIndex != index && CurrentWeaponIndex >= 0 && CurrentWeaponIndex < Weapons.Num())
+
+	bool bSlotChanged = Weapons[CurrentWeaponSlot] == nullptr;
+	if (
+		CurrentWeaponSlot != Slot
+		&& CurrentWeaponSlot >= MinWeaponSlot && CurrentWeaponSlot <= MaxWeaponSlot
+		&& Weapons[CurrentWeaponSlot] != nullptr
+		&& Weapons[CurrentWeaponSlot]->WeaponMesh != nullptr
+	)
 	{
-		check(Weapons[CurrentWeaponIndex] != nullptr);
-		Weapons[CurrentWeaponIndex]->WeaponMesh->SetVisibility(false);
+		Weapons[CurrentWeaponSlot]->WeaponMesh->SetVisibility(false);
+		bSlotChanged = true;
 	}
 
-	CurrentWeaponIndex = index;
-	check(Weapons[index] != nullptr);
-
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
-	check(Character != nullptr);
-	if (!Character->IsInNoAimingState() && Weapons[index]->WeaponMesh != nullptr)
+	CurrentWeaponSlot = Slot;
+	if (bWeaponIsVisible && Weapons[Slot]->WeaponMesh != nullptr)
 	{
-		Weapons[index]->SwitchCharacterToAnimationSet();
-		Weapons[index]->WeaponMesh->SetVisibility(true);
+		Weapons[Slot]->WeaponMesh->SetVisibility(true);
 	}
 
-	Character->OnWeaponAndAmmoChanged();
+	if (bSlotChanged)
+	{
+		OnWeaponAndAmmoChanged.Execute();
+	}
 
 	return true;
 }
 
 void UWeaponManagerComponent::SetNextWeapon()
 {
-	if (CurrentWeaponIndex == Weapons.Num() - 1)
+	static constexpr auto CyclicIncr = [](int32& i){ return i = i == MaxWeaponSlot ? MinWeaponSlot : i + 1; };
+
+	if (GetCurrentWeapon() == nullptr) // don't have any weapons
 	{
-		SetCurrentWeapon(0);
 		return;
 	}
-	SetCurrentWeapon(CurrentWeaponIndex + 1);
+
+	auto Slot = CurrentWeaponSlot;
+	while (Weapons[CyclicIncr(Slot)] == nullptr);
+	SetCurrentWeaponSlot(Slot);
 }
 
 void UWeaponManagerComponent::SetPreviousWeapon()
 {
-	if (CurrentWeaponIndex == 0)
+	static constexpr auto CyclicDecr = [](int32& i){ return i = i == MinWeaponSlot ? MaxWeaponSlot : i - 1; };
+
+	if (GetCurrentWeapon() == nullptr) // don't have any weapons
 	{
-		SetCurrentWeapon(Weapons.Num() - 1);
 		return;
 	}
-	SetCurrentWeapon(CurrentWeaponIndex - 1);
+
+	auto Slot = CurrentWeaponSlot;
+	while (Weapons[CyclicDecr(Slot)] == nullptr);
+	SetCurrentWeaponSlot(Slot);
 }
 
 int32 UWeaponManagerComponent::GetCurrentWeaponIndex() const
 {
-	checkf(!Weapons.IsEmpty(), TEXT("Add some weapons first"));
-	return CurrentWeaponIndex;
+	checkf(GetCurrentWeapon() != nullptr, TEXT("Add some weapons first"));
+	return CurrentWeaponSlot;
 }
 
 ABaseWeapon* UWeaponManagerComponent::GetCurrentWeapon() const
 {
-	if (!HasValidWeapon())
-	{
-		return nullptr;
-	}
-	return CurrentWeapon();
+	return Weapons[CurrentWeaponSlot];
 }
 
 void UWeaponManagerComponent::Reload()
 {
-	if (!HasValidWeapon())
+	if (GetCurrentWeapon() == nullptr)
 	{
 		return;
 	}
-	auto Weapon = CurrentWeapon();
+	auto Weapon = GetCurrentWeapon();
 	auto AmmoComponent = Cast<UAmmoComponent>(Weapon->FindComponentByClass(UAmmoComponent::StaticClass()));
 	if (AmmoComponent == nullptr)
 	{
@@ -130,41 +156,24 @@ void UWeaponManagerComponent::Reload()
 
 bool UWeaponManagerComponent::AttackIsBeingPerformed() const
 {
-	return !Weapons.IsEmpty() && CurrentWeapon()->AttackIsBeingPerformed();
+	return GetCurrentWeapon() != nullptr && GetCurrentWeapon()->AttackIsBeingPerformed();
 }
 
-bool UWeaponManagerComponent::HasValidWeapon() const
+void UWeaponManagerComponent::SetIsCrouching(bool IsCrouching)
 {
-	return !Weapons.IsEmpty();
-}
-
-void UWeaponManagerComponent::SpawnAndAddDefaultWeapons()
-{
-	auto World = GetWorld();
-	if (World == nullptr)
+	for (auto Weapon : Weapons)
 	{
-		return;
-	}
-
-	for (auto WeaponClass : DefaultWeapons)
-	{
-		auto Weapon = World->SpawnActor<ABaseWeapon>(WeaponClass);
-		if (Weapon == nullptr)
+		if (Weapon != nullptr)
 		{
-			return;
+			Weapon->IsCrouching = IsCrouching;
 		}
-		AddWeapon(Weapon);
 	}
 }
 
 void UWeaponManagerComponent::BeginAttack()
 {
-	if (Weapons.IsEmpty())
-	{
-		return;
-	}
-	auto Weapon = CurrentWeapon();
-	if (!Weapon->AttackIsBeingPerformed())
+	auto Weapon = GetCurrentWeapon();
+	if (Weapon != nullptr && !Weapon->AttackIsBeingPerformed())
 	{
 		Weapon->BeginAttack();
 	}
@@ -172,46 +181,18 @@ void UWeaponManagerComponent::BeginAttack()
 
 void UWeaponManagerComponent::EndAttack()
 {
-	if (Weapons.IsEmpty())
-	{
-		return;
-	}
-	auto Weapon = CurrentWeapon();
-	if (Weapon->AttackIsBeingPerformed())
+	auto Weapon = GetCurrentWeapon();
+	if (Weapon != nullptr && Weapon->AttackIsBeingPerformed())
 	{
 		Weapon->EndAttack();
 	}
 }
 
-void UWeaponManagerComponent::BeginAim()
+void UWeaponManagerComponent::SetWeaponVisibility(bool Visible)
 {
-	if (Weapons.IsEmpty())
+	bWeaponIsVisible = Visible;
+	if (auto Weapon = GetCurrentWeapon(); Weapon != nullptr && Weapon->WeaponMesh != nullptr)
 	{
-		return;
+		Weapon->WeaponMesh->SetVisibility(Visible);
 	}
-	auto Weapon = CurrentWeapon();
-	Weapon->SwitchCharacterToAnimationSet();
-	if (Weapon->WeaponMesh != nullptr)
-	{
-		Weapon->WeaponMesh->SetVisibility(true);
-	}
-}
-
-void UWeaponManagerComponent::EndAim()
-{
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
-	check(Character != nullptr);
-	Character->AnimationSet = EPlayerCharacterBaseAnimationSet::Unarmed;
-	
-	if (auto Weapon = CurrentWeapon(); Weapon->WeaponMesh != nullptr)
-	{
-		Weapon->WeaponMesh->SetVisibility(false);
-	}
-}
-
-ABaseWeapon* UWeaponManagerComponent::CurrentWeapon() const
-{
-	checkf(CurrentWeaponIndex >= 0 && CurrentWeaponIndex < Weapons.Num(), TEXT("Weapon index is out of bounds"));
-	check(Weapons[CurrentWeaponIndex] != nullptr);
-	return Weapons[CurrentWeaponIndex];
 }

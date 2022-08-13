@@ -78,6 +78,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "General")
 	void Reload();
 
+	void ChangeClip();
+
 private:
 	int32 ArsenalAmmo;
 	int32 ClipAmmo;
@@ -97,6 +99,4 @@ private:
 	);
 
 	void OnReloadAnimFinished(class USkeletalMeshComponent* Mesh);
-
-	void ChangeClip();
 };

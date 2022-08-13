@@ -20,6 +20,7 @@ public class MyFirstGameInUE5 : ModuleRules
 			, "MyFirstGameInUE5/Global/Utilities"
 			, "MyFirstGameInUE5/Global/Utilities/Components"
 			, "MyFirstGameInUE5/Characters"
+			, "MyFirstGameInUE5/Interaction"
 		});
 
 		// Uncomment if you are using Slate UI

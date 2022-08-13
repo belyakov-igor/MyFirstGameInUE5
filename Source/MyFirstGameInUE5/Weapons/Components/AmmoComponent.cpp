@@ -3,7 +3,6 @@
 #include "Global/Utilities/MyUtilities.h"
 #include "Weapons/Actors/BaseWeapon.h"
 #include "Weapons/Components/WeaponManagerComponent.h"
-#include "Weapons/WeaponUtilities.h"
 #include "Animation/ReloadFinishedAnimNotify.h"
 
 #include "GameFramework/Character.h"
@@ -20,7 +19,7 @@ void UAmmoComponent::BeginPlay()
 	ClipAmmo = ClipCapacity;
 	ArsenalAmmo = ArsenalCapacity;
 
-	auto ReloadFinishedNotify = UWeaponUtilities::FindNotifyByClass<UReloadFinishedAnimNotify>(ReloadAnimMontage);
+	auto ReloadFinishedNotify = UMyUtilities::FindNotifyByClass<UReloadFinishedAnimNotify>(ReloadAnimMontage);
 	ReloadFinishedNotify->OnNotified.AddUObject(this, &UAmmoComponent::OnReloadAnimFinished);
 }
 
@@ -133,7 +132,9 @@ void UAmmoComponent::OnReloadAnimFinished(USkeletalMeshComponent* Mesh)
 		return;
 	}
 	bool IsThisWeapon = false;
-	for (auto WeaponManagerComponent_ : Character->GetComponentsByClass(UWeaponManagerComponent::StaticClass()))
+	TArray<UActorComponent*> WeaponManagerComponents;
+	Character->GetComponents(UWeaponManagerComponent::StaticClass(), WeaponManagerComponents);
+	for (auto WeaponManagerComponent_ : WeaponManagerComponents)
 	{
 		auto WeaponManagerComponent = Cast<UWeaponManagerComponent>(WeaponManagerComponent_);
 		check(WeaponManagerComponent != nullptr);

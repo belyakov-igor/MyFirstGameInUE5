@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Global/Utilities/MyUtilities.h"
-#include "Weapons/WeaponUtilities.h"
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
@@ -20,6 +19,10 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	class USkeletalMeshComponent* WeaponMesh;
 
+	/** It it's 2, weapon will be accessed with key "2" on keyboard */
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Weapon", meta = (ClampMin = 0, ClampMax = 9))
+	int32 Slot = 1;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon")
 	FName HandGripSocketName = "HandGripSocket";
 
@@ -32,17 +35,21 @@ public:
 	/** In degrees */
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Weapon")
 	float BulletSpread = 0.f;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
 	class UTexture2D* WeaponIcon = nullptr;
-	
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
 	class UTexture2D* CrossHairIcon = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation")
+	bool IsCrouching = false;
 
 	virtual void BeginAttack() {}
 	virtual void EndAttack() {}
 
-	virtual void SwitchCharacterToAnimationSet() const { checkNoEntry(); };
+	virtual EPlayerCharacterBaseAnimationSet GetCharacterAnimationSet() const
+	{ return EPlayerCharacterBaseAnimationSet::Unarmed; };
 
 	bool AttackIsBeingPerformed() const { return bAttackIsBeingPerformed; }
 

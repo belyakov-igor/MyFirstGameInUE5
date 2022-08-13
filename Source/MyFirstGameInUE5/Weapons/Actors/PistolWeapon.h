@@ -15,7 +15,8 @@ public:
 
     virtual void BeginAttack() override;
 
-	virtual void SwitchCharacterToAnimationSet() const override;
+	virtual EPlayerCharacterBaseAnimationSet GetCharacterAnimationSet() const override
+    { return EPlayerCharacterBaseAnimationSet::Pistol; }
 
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     class UAnimMontage* CrouchFireAnimMontage;
@@ -27,10 +28,10 @@ public:
     class UAmmoComponent* AmmoComponent;
 
     UPROPERTY(EditDefaultsOnly, Category = "General")
-    float TimeBetweenShots = 0.5f;
+    float TimeBetweenShots = 0.3f;
 
     UPROPERTY(EditDefaultsOnly, Category = "General")
-    float Damage = 5.f;
+    float Damage = 25.f;
 
 protected:
     virtual void BeginPlay() override;

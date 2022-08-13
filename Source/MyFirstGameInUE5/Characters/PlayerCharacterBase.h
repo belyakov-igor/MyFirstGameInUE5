@@ -1,19 +1,11 @@
 #pragma once
 
-#include "Weapons/WeaponUtilities.h"
+#include "Global/Utilities/MyUtilities.h"
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
 
 #include "PlayerCharacterBase.generated.h"
-
-UENUM(BlueprintType)
-enum EPlayerCharacterBaseAnimationSet
-{
-	Unarmed     UMETA(DisplayName = "Unarmed"),
-	Pistol      UMETA(DisplayName = "Pistol"),
-	Rifle       UMETA(DisplayName = "Rifle"),
-};
 
 UCLASS()
 class MYFIRSTGAMEINUE5_API APlayerCharacterBase : public ACharacter
@@ -52,6 +44,13 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	class UWeaponManagerComponent* RangedWeaponManagerComponent;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	class UInteractingComponent* InteractingComponent;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	class UDamageTakerComponent* DamageTakerComponent;
+
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion", meta = (ClampMin = 1.2f, ClampMax = 4.f))
 	float RunSpeedCoef = 1.5f;
 
@@ -71,6 +70,9 @@ public:
 	// How much time takes transitin from upright to crouch and vice-versa
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion", meta = (ClampMin = 0.f, ClampMax = 3.f))
 	float UprightToCrouchTransitionTime = 0.5f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Locomotion", meta = (ClampMin = 0.f))
+	float DelayForSetMovementSettingsForNotRunning = 1.0f;
 
 	// How much time takes transitin from no aim to aim and vice-versa
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack", meta = (ClampMin = 0.f, ClampMax = 3.f))
@@ -150,15 +152,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Locomotion")
 	void StopSmoothlyOrientSelfToWorldYawValue();
 // } SmoothlyOrientSelfToWorldYawValue facilities
-
-	UFUNCTION(BlueprintCallable, Category = "UI")
-	bool GetRangedWeaponUIData(struct FWeaponUIData& RangedFWeaponUIData) const;
-
-	UFUNCTION(BlueprintCallable, Category = "UI")
-	void GetHealthData(int32& Health, int32& MaxHealth) const;
-
-	UFUNCTION(BlueprintCallable, Category = "UI")
-	void GetStaminaData(int32& Stamina, int32& MaxStamina) const;
 
 
 	virtual void Landed(const FHitResult& Hit) override;
@@ -303,6 +296,12 @@ private:
 	void OnWeapon2Pressed();
 	void OnWeapon3Pressed();
 	void OnWeapon4Pressed();
+	void OnWeapon5Pressed();
+	void OnWeapon6Pressed();
+	void OnWeapon7Pressed();
+	void OnWeapon8Pressed();
+	void OnWeapon9Pressed();
+	void OnWeapon0Pressed();
 // } Action and axis mappings
 
 // Camera pitch {
@@ -319,6 +318,7 @@ private:
 	void UseCrouchCameraPitch(float coef);
 // } Camera pitch
 
+// Transition Updater {
 	enum class ETransitionFinished { No, Yes };
 
 	struct FSmoothStateTransitionUpdater
@@ -330,6 +330,7 @@ private:
 	private:
 		float TimeInTransition = 0.f;
 	};
+// } Transition Updater
 
 // Upright to crouch smooth transition {
 	float CapsuleUprightHalfHeightBackup = 0.f;
@@ -357,7 +358,7 @@ private:
 	void SetFov(float coef);
 
 	FSmoothStateTransitionUpdater AimToNoAimUpdater;
-	// } Upright to crouch smooth transition
+// } Upright to crouch smooth transition
 
 // Upright to crouch switch {
 	float CrouchCoef = 0.f;
@@ -388,4 +389,9 @@ private:
 
 	UPROPERTY()
 	class UCharacterManHUDWidget* HUDWidget = nullptr;
+
+	void SetMovementSettingsForRunning();
+	void SetMovementSettingsForNotRunning();
+	void SetMovementSettingsForNotRunningImpl();
+	FTimerHandle MovementSettingsForRunningTimerHandle;
 };

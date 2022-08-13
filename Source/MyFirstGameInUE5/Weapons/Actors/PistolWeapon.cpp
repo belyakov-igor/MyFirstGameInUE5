@@ -3,7 +3,7 @@
 #include "Characters/PlayerCharacterBase.h"
 
 #include "Weapons/Components/AmmoComponent.h"
-#include "Characters/PlayerCharacterBase.h"
+#include "Global/Utilities/Components/DamageTakerComponent.h"
 
 APistolWeapon::APistolWeapon()
 {
@@ -15,13 +15,6 @@ void APistolWeapon::BeginPlay()
 	Super::BeginPlay();
 
 	AmmoComponent->ClipIsEmpty.AddUObject(AmmoComponent, &UAmmoComponent::Reload);
-}
-
-void APistolWeapon::SwitchCharacterToAnimationSet() const
-{
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
-	check(Character != nullptr);
-	Character->AnimationSet = EPlayerCharacterBaseAnimationSet::Pistol;
 }
 
 void APistolWeapon::BeginAttack()
@@ -46,15 +39,17 @@ void APistolWeapon::BeginAttack()
 		, /*InRate*/ TimeBetweenShots
 		, /*bInLoop*/ false
 	);
-	Character->PlayAnimMontage(
-		Character->GetCrouchCoef() > 0.5f
-		? CrouchFireAnimMontage
-		: UprightFireAnimMontage
-	);
+	Character->PlayAnimMontage(IsCrouching ? CrouchFireAnimMontage : UprightFireAnimMontage);
 	AmmoComponent->DecreaseClip(1);
 	FHitResult HitResult = MakeTrace();
-	if (HitResult.bBlockingHit && HitResult.GetActor())
+	if (!HitResult.bBlockingHit)
 	{
 		HitResult.GetActor()->TakeDamage(Damage, FDamageEvent{}, GetPlayerController(), this);
 	}
+	EBodyPart BodyPart = EBodyPart::Other;
+	if (HitResult.BoneName.ToString().Contains("head"))
+	{
+		BodyPart = EBodyPart::Head;
+	}
+	UDamageTakerComponent::InflictPenetrationDamage(HitResult.GetActor(), Damage, BodyPart);
 }

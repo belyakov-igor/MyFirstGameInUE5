@@ -1,7 +1,9 @@
 #include "Weapons/Actors/RifleWeapon.h"
 
 #include "Weapons/Components/AmmoComponent.h"
-#include "Characters/PlayerCharacterBase.h"
+#include "Global/Utilities/Components/DamageTakerComponent.h"
+
+#include "GameFramework/Character.h"
 
 ARifleWeapon::ARifleWeapon()
 {
@@ -13,13 +15,6 @@ void ARifleWeapon::BeginPlay()
 	Super::BeginPlay();
 
 	AmmoComponent->ClipIsEmpty.AddUObject(AmmoComponent, &UAmmoComponent::Reload);
-}
-
-void ARifleWeapon::SwitchCharacterToAnimationSet() const
-{
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
-	check(Character != nullptr);
-	Character->AnimationSet = EPlayerCharacterBaseAnimationSet::Rifle;
 }
 
 void ARifleWeapon::BeginAttack()
@@ -37,22 +32,24 @@ void ARifleWeapon::BeginAttack()
 				{
 					return;
 				}
-				auto Character = Cast<APlayerCharacterBase>(GetOwner());
+				auto Character = Cast<ACharacter>(GetOwner());
 				if (Character == nullptr)
 				{
 					return;
 				}
-				Character->PlayAnimMontage(
-					Character->GetCrouchCoef() > 0.5
-					? CrouchFireAnimMontage
-					: UprightFireAnimMontage
-				);
+				Character->PlayAnimMontage(IsCrouching ? CrouchFireAnimMontage : UprightFireAnimMontage);
 				AmmoComponent->DecreaseClip(1);
 				FHitResult HitResult = MakeTrace();
-				if (HitResult.bBlockingHit && HitResult.GetActor())
+				if (!HitResult.bBlockingHit)
 				{
-					HitResult.GetActor()->TakeDamage(Damage, FDamageEvent{}, GetPlayerController(), this);
+					return;
 				}
+				EBodyPart BodyPart = EBodyPart::Other;
+				if (HitResult.BoneName.ToString().Contains("head"))
+				{
+					BodyPart = EBodyPart::Head;
+				}
+				UDamageTakerComponent::InflictPenetrationDamage(HitResult.GetActor(), Damage, BodyPart);
 			}
 		, /*InRate*/ TimeBetweenShots
 		, /*bInLoop*/ true

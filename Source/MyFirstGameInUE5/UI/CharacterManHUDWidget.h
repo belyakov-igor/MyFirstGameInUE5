@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Weapons/WeaponUtilities.h"
+#include "Global/Utilities/MyUtilities.h"
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
@@ -26,6 +26,9 @@ public:
 	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
 	void UpdateCrosshairVisibility(bool Visible);
 
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
+	void ChangeInteractingHUDText(const FText& Text);
+
 protected:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	bool GetCharacterWeaponUIData(FWeaponUIData& CharacterFWeaponUIData) const;
@@ -41,4 +44,5 @@ private:
 	void UpdateHealth_Implementation() {}
 	void UpdateStamina_Implementation() {}
 	void UpdateCrosshairVisibility_Implementation(bool) {}
+	void ChangeInteractingHUDText_Implementation(const FText& Text) {}
 };
