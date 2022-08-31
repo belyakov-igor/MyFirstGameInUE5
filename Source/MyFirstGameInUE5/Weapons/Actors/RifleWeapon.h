@@ -34,6 +34,9 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "General")
     float Damage = 40.f;
 
+    UPROPERTY(EditDefaultsOnly, Category = "General")
+    float BulletMomentum = 900.f;
+
 protected:
     virtual void BeginPlay() override;
 

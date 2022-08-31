@@ -21,7 +21,7 @@ public:
 	void RemoveInteractableActor(AInteractableActor* InteractableActor);
 	void Interact();
 
-	FTextSignature ChangeHUDText;
+	FTextMulticastSignature ChangeHUDText;
 	
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 

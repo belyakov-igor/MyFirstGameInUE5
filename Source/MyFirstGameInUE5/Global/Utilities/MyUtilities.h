@@ -6,11 +6,13 @@
 #include "MyUtilities.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_TwoParams(FInt32Int32MulticastSignature, int32, int32);
-DECLARE_MULTICAST_DELEGATE_OneParam(FFloatSignature, float);
-DECLARE_MULTICAST_DELEGATE_OneParam(FTextSignature, const FText&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FFloatMulticastSignature, float);
+DECLARE_MULTICAST_DELEGATE_OneParam(FTextMulticastSignature, const FText&);
 DECLARE_MULTICAST_DELEGATE(FSignalMulticastSignature);
 
 DECLARE_DELEGATE(FSignalSignature);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSignalMulticastDynamicSignature);
 
 UCLASS()
 class MYFIRSTGAMEINUE5_API UMyUtilities : public UBlueprintFunctionLibrary

@@ -92,7 +92,14 @@ void AUnarmedWeapon::OnHitNotify(USkeletalMeshComponent* Mesh)
 		return;
 	}
 
-	UDamageTakerComponent::InflictBluntHitDamage(HitResult.GetActor(), Damage, ForwardVector * PunchMomentum);
+
+	UDamageTakerComponent::InflictDamage(HitResult.GetActor(), HitResult.BoneName, Damage);
+	UDamageTakerComponent::GiveMomentum(
+		HitResult.GetActor()
+		, HitResult.BoneName
+		, HitResult.ImpactPoint
+		, ForwardVector * PunchMomentum
+	);
 }
 
 void AUnarmedWeapon::OnAttackFinishedNotify(USkeletalMeshComponent* Mesh)

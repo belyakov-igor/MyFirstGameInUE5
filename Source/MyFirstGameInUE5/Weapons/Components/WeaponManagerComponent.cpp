@@ -56,7 +56,7 @@ void UWeaponManagerComponent::AddWeapon(ABaseWeapon* Weapon)
 	{
 		SetCurrentWeaponSlot(SlotIndex);
 	}
-	if (bOnWeaponAndAmmoChangedSignalNeeded)
+	if (bOnWeaponAndAmmoChangedSignalNeeded && OnWeaponAndAmmoChanged.IsBound())
 	{
 		OnWeaponAndAmmoChanged.Execute();
 	}

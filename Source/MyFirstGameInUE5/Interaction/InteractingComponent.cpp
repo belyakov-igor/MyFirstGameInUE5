@@ -65,11 +65,11 @@ void UInteractingComponent::TickComponent(float DeltaTime, enum ELevelTick /*Tic
 	{
 		if (OldActorInFocus != nullptr)
 		{
-			OldActorInFocus->FocusOut();
+			OldActorInFocus->FocusOut.Broadcast();
 		}
 		if (ActorInFocus != nullptr)
 		{
-			ActorInFocus->FocusIn();
+			ActorInFocus->FocusIn.Broadcast();
 		}
 	}
 }

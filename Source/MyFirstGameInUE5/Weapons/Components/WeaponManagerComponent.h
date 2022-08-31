@@ -21,7 +21,7 @@ public:
 	static constexpr int32 MinWeaponSlot = 0;
 	static constexpr int32 MaxWeaponSlot = 9;
 
-	/** 9 slots with weapons that the owner character currently has.
+	/** 10 slots with weapons that the owner character currently has.
 	 *  Empty slots contain nullptr.
 	 *  Weapons are supposed to be added to their slots during gameplay.
 	 */

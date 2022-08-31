@@ -1,21 +1,12 @@
 #pragma once
 
-#include "Global/Utilities/MyUtilities.h"
-
 #include "CoreMinimal.h"
 #include "Components/ActorComponent.h"
 
 #include "DamageTakerComponent.generated.h"
 
-
-
-UENUM(BlueprintType)
-enum class EBodyPart : uint8
-{
-	  Head     UMETA(DisplayName = "Head")
-	, Other    UMETA(DisplayName = "Other")
-};
-
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FDamageMulticastDynamicSignature, FName, BoneName, float, Damage);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FMomentumMulticastDynamicSignature, FName, BoneName, FVector, ImpactPoint, FVector, Momentum);
 
 UCLASS( ClassGroup=(Custom), meta=(BlueprintSpawnableComponent) )
 class MYFIRSTGAMEINUE5_API UDamageTakerComponent : public UActorComponent
@@ -25,25 +16,18 @@ class MYFIRSTGAMEINUE5_API UDamageTakerComponent : public UActorComponent
 public:	
 	UDamageTakerComponent() { PrimaryComponentTick.bCanEverTick = false; }
 
-// Penetration { ==========================================================================
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
-	float HeadShotDamageMultiplier = 4.f;
+	UPROPERTY(BlueprintAssignable, Category = "Damage")
+	FDamageMulticastDynamicSignature DamageTaken;
+
+	UPROPERTY(BlueprintAssignable, Category = "Damage")
+	FMomentumMulticastDynamicSignature MomentumTaken;
 
 	UFUNCTION(BlueprintCallable, Category = "Damage")
-	void TakePenetrationDamage(float DamageAmount, EBodyPart BodyPart);
+	static void InflictDamage(AActor* TargetActor, FName BoneName, float Damage);
 
 	UFUNCTION(BlueprintCallable, Category = "Damage")
-	static void InflictPenetrationDamage(AActor* TargetActor, float DamageAmount, EBodyPart BodyPart);
-// } Penetration ==========================================================================
+	static void GiveMomentum(AActor* TargetActor, FName BoneName, FVector ImpactPoint, FVector Momentum);
 
-// BluntHit { =============================================================================
-	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
-	float Mass = 80.f;
-
-	UFUNCTION(BlueprintCallable, Category = "Damage")
-	void TakeBluntHitDamage(float DamageAmount, FVector Momentum);
-
-	UFUNCTION(BlueprintCallable, Category = "Damage")
-	static void InflictBluntHitDamage(AActor* TargetActor, float DamageAmount, FVector Momentum);
-// } BluntHit =============================================================================
+private:
+	static UDamageTakerComponent* FindDamageTakerComponent(AActor* TargetActor);
 };

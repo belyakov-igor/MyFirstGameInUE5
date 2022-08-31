@@ -78,11 +78,14 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack", meta = (ClampMin = 0.f, ClampMax = 3.f))
 	float AimToNoAimTransitionTime = 0.3f;
 
-    UPROPERTY(EditDefaultsOnly, Category = "Animation")
-    class UAnimMontage* DeathAnimMontage;
-
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
 	FVector2D LandingVelocityDamageRange{900.f, 1500.f};
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
+	float HeadShotDamageMultiplier = 2.f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
+	FName HeadBoneName = "head";
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
 	FVector2D LandingDamageRange{10.f, 100.f};
@@ -92,6 +95,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
 	float AimingFovCoef = 0.8f;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
+	TSubclassOf<class ABaseWeapon> DefaultMeleeWeaponClass = nullptr;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Status")
 	TEnumAsByte<EPlayerCharacterBaseAnimationSet> AnimationSet = EPlayerCharacterBaseAnimationSet::Unarmed;
@@ -261,16 +267,14 @@ private:
 // } States
 
 // Damage {
-	UFUNCTION()
-	void TakeAnyDamage(
-		AActor* DamagedActor
-		, float Damage
-		, const class UDamageType* DamageType
-		, class AController* InstigatedBy
-		, AActor* DamageCauser
-	);
 	void Die();
 	bool bIsDead = false;
+
+	UFUNCTION()
+	void TakeDamageCallback(FName BoneName, float Damage);
+
+	UFUNCTION()
+	void TakeMomentumCallback(FName BoneName, FVector ImpactPoint, FVector Momentum);
 // } Damage
 
 // Stamina {

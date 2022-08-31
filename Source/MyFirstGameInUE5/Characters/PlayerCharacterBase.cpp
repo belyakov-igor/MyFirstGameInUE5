@@ -2,6 +2,7 @@
 
 #include "Utilities/Components/ClampedIntegerComponent.h"
 #include "Weapons/Components/WeaponManagerComponent.h"
+#include "Weapons/Actors/BaseWeapon.h"
 #include "UI/CharacterManHUDWidget.h"
 #include "Interaction/InteractingComponent.h"
 #include "Global/Utilities/Components/DamageTakerComponent.h"
@@ -58,7 +59,6 @@ void APlayerCharacterBase::BeginPlay()
 	check(State != nullptr);
 	check(AimState != nullptr);
 
-	OnTakeAnyDamage.AddDynamic(this, &APlayerCharacterBase::TakeAnyDamage);
 	HealthComponent->ReachedMin.AddUObject(this, &APlayerCharacterBase::Die);
 	HealthComponent->SetValue(HealthComponent->Max);
 
@@ -66,6 +66,12 @@ void APlayerCharacterBase::BeginPlay()
 	StaminaComponent->ValueChanged.AddUObject(this, &APlayerCharacterBase::WaitForSomeTimeAndStartRegeneratingStaminaIfNeeded);
 
 	RangedWeaponManagerComponent->OnWeaponAndAmmoChanged.BindUObject(this, &APlayerCharacterBase::OnWeaponAndAmmoChanged);
+
+	{
+		checkf(DefaultMeleeWeaponClass != nullptr, TEXT("Default melee weapon should be specified."));
+		auto DefaultMeleeWeapon = GetWorld()->SpawnActor<ABaseWeapon>(DefaultMeleeWeaponClass);
+		MeleeWeaponManagerComponent->AddWeapon(DefaultMeleeWeapon);
+	}
 
 
 	CapsuleUprightHalfHeightBackup = GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight();
@@ -108,6 +114,9 @@ void APlayerCharacterBase::BeginPlay()
 		}
 	;
 	AimToNoAimUpdater.Callback(0.f);
+
+	DamageTakerComponent->DamageTaken.AddDynamic(this, &APlayerCharacterBase::TakeDamageCallback);
+	DamageTakerComponent->MomentumTaken.AddDynamic(this, &APlayerCharacterBase::TakeMomentumCallback);
 
 	if (HUDWidget != nullptr)
 	{
@@ -756,12 +765,7 @@ void APlayerCharacterBase::Landed(const FHitResult& Hit)
 		return;
 	}
 
-	TakeDamage(
-		FMath::GetMappedRangeValueClamped(LandingVelocityDamageRange, LandingDamageRange, VelocityZ)
-		, FDamageEvent{}
-		, nullptr
-		, nullptr
-	);
+	TakeDamageCallback(NAME_None, FMath::GetMappedRangeValueClamped(LandingVelocityDamageRange, LandingDamageRange, VelocityZ));
 }
 
 void APlayerCharacterBase::OnWeaponAndAmmoChanged()
@@ -776,28 +780,14 @@ void APlayerCharacterBase::OnWeaponAndAmmoChanged()
 	}
 }
 
-void APlayerCharacterBase::TakeAnyDamage(
-	AActor* DamagedActor
-	, float Damage
-	, const class UDamageType* DamageType
-	, class AController* InstigatedBy
-	, AActor* DamageCauser
-)
-{
-	if (bIsDead)
-	{
-		return;
-	}
-	HealthComponent->Decrease(static_cast<int32>(Damage));
-}
-
 void APlayerCharacterBase::Die()
 {
 	if (bIsDead)
 	{
 		return;
 	}
-	PlayAnimMontage(DeathAnimMontage);
+	bIsDead = true;
+
 	GetCharacterMovement()->DisableMovement();
 	GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	MeleeWeaponManagerComponent->EndAttack();
@@ -805,6 +795,37 @@ void APlayerCharacterBase::Die()
 	if (IsPlayerControlled())
 	{
 		HUDWidget->RemoveFromParent();
+	}
+
+	GetMesh()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
+	GetMesh()->SetSimulatePhysics(true);
+}
+
+void APlayerCharacterBase::TakeDamageCallback(FName BoneName, float Damage)
+{
+	if (bIsDead)
+	{
+		return;
+	}
+	if (BoneName == HeadBoneName)
+	{
+		Damage *= HeadShotDamageMultiplier;
+	}
+	HealthComponent->Decrease(static_cast<int32>(Damage));
+}
+
+void APlayerCharacterBase::TakeMomentumCallback(FName BoneName, FVector ImpactPoint, FVector Momentum)
+{
+	if (bIsDead)
+	{
+		if (GetMesh()->IsSimulatingPhysics(BoneName))
+		{
+			GetMesh()->AddImpulseAtLocation(Momentum, ImpactPoint, BoneName);
+		}
+	}
+	else
+	{
+		GetCharacterMovement()->AddImpulse(Momentum);
 	}
 }
 

@@ -44,12 +44,13 @@ void ARifleWeapon::BeginAttack()
 				{
 					return;
 				}
-				EBodyPart BodyPart = EBodyPart::Other;
-				if (HitResult.BoneName.ToString().Contains("head"))
-				{
-					BodyPart = EBodyPart::Head;
-				}
-				UDamageTakerComponent::InflictPenetrationDamage(HitResult.GetActor(), Damage, BodyPart);
+				UDamageTakerComponent::InflictDamage(HitResult.GetActor(), HitResult.BoneName, Damage);
+				UDamageTakerComponent::GiveMomentum(
+					HitResult.GetActor()
+					, HitResult.BoneName
+					, HitResult.ImpactPoint
+					, (HitResult.TraceEnd - HitResult.TraceStart).GetSafeNormal()* BulletMomentum
+				);
 			}
 		, /*InRate*/ TimeBetweenShots
 		, /*bInLoop*/ true

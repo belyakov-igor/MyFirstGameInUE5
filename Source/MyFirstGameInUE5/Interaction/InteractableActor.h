@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Global/Utilities/MyUtilities.h"
+
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 
@@ -10,7 +12,7 @@ class MYFIRSTGAMEINUE5_API AInteractableActor : public AActor
 {
 	GENERATED_BODY()
 
-public:	
+public:
 	AInteractableActor();
 
 	/** return text to display in HUD when this interactable is in focus */
@@ -18,11 +20,11 @@ public:
 
 	virtual void Interact(class APawn* Pawn) {};
 
-	UFUNCTION(BlueprintNativeEvent)
-	void FocusIn();
+	UPROPERTY(BlueprintAssignable, Category = "Focus")
+	FSignalMulticastDynamicSignature FocusIn;
 
-	UFUNCTION(BlueprintNativeEvent)
-	void FocusOut();
+	UPROPERTY(BlueprintAssignable, Category = "Focus")
+	FSignalMulticastDynamicSignature FocusOut;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
@@ -34,9 +36,6 @@ protected:
 public:
 	virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;
 	virtual void NotifyActorEndOverlap(AActor* OtherActor) override;
-
-	void FocusIn_Implementation() {}
-	void FocusOut_Implementation() {}
 
 private:
 	class UInteractingComponent* FindInteractingComponent(AActor* Actor);

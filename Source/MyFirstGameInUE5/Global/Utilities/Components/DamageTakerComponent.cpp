@@ -2,55 +2,31 @@
 
 #include "GameFramework/Character.h"
 
-void UDamageTakerComponent::TakePenetrationDamage(float DamageAmount, EBodyPart BodyPart)
+void UDamageTakerComponent::InflictDamage(AActor* TargetActor, FName BoneName, float Damage)
 {
-	check(GetOwner() != nullptr);
-	GetOwner()->TakeDamage(
-		BodyPart == EBodyPart::Head ? HeadShotDamageMultiplier * DamageAmount : DamageAmount
-		, FDamageEvent{}
-		, nullptr
-		, nullptr
-	);
-}
-
-void UDamageTakerComponent::InflictPenetrationDamage(AActor* TargetActor, float DamageAmount, EBodyPart BodyPart)
-{
-	if (TargetActor == nullptr)
-	{
-		return;
-	}
-	auto DamageTakerComponent =
-		Cast<UDamageTakerComponent>(TargetActor->FindComponentByClass(UDamageTakerComponent::StaticClass()))
-	;
+	auto DamageTakerComponent = FindDamageTakerComponent(TargetActor);
 	if (DamageTakerComponent == nullptr)
 	{
 		return;
 	}
-	DamageTakerComponent->TakePenetrationDamage(DamageAmount, BodyPart);
+	DamageTakerComponent->DamageTaken.Broadcast(BoneName, Damage);
 }
 
-void UDamageTakerComponent::TakeBluntHitDamage(float DamageAmount, FVector Momentum)
+void UDamageTakerComponent::GiveMomentum(AActor* TargetActor, FName BoneName, FVector ImpactPoint, FVector Momentum)
 {
-	check(GetOwner() != nullptr);
-	GetOwner()->TakeDamage(DamageAmount, FDamageEvent{}, nullptr, nullptr);
-	if (auto Character = Cast<ACharacter>(GetOwner()); Character != nullptr)
-	{
-		Character->LaunchCharacter(Momentum / Mass, /*bXYOverride*/ false, /*bZOverride*/ false);
-	}
-}
-
-void UDamageTakerComponent::InflictBluntHitDamage(AActor* TargetActor, float DamageAmount, FVector Momentum)
-{
-	if (TargetActor == nullptr)
-	{
-		return;
-	}
-	auto DamageTakerComponent =
-		Cast<UDamageTakerComponent>(TargetActor->FindComponentByClass(UDamageTakerComponent::StaticClass()))
-	;
+	auto DamageTakerComponent = FindDamageTakerComponent(TargetActor);
 	if (DamageTakerComponent == nullptr)
 	{
 		return;
 	}
-	DamageTakerComponent->TakeBluntHitDamage(DamageAmount, Momentum);
+	DamageTakerComponent->MomentumTaken.Broadcast(BoneName, ImpactPoint, Momentum);
+}
+
+UDamageTakerComponent* UDamageTakerComponent::FindDamageTakerComponent(AActor* TargetActor)
+{
+	if (TargetActor == nullptr)
+	{
+		return nullptr;
+	}
+	return Cast<UDamageTakerComponent>(TargetActor->FindComponentByClass(UDamageTakerComponent::StaticClass()));
 }
