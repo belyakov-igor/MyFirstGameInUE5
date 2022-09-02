@@ -2,8 +2,6 @@
 
 #include "Interaction/InteractableActor.h"
 
-#include "DrawDebugHelpers.h"
-
 UInteractingComponent::UInteractingComponent()
 {
 	PrimaryComponentTick.bCanEverTick = true;

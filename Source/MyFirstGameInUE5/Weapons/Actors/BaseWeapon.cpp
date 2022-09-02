@@ -3,8 +3,6 @@
 #include "Characters/PlayerCharacterBase.h"
 #include "Weapons/Components/AmmoComponent.h"
 
-#include "DrawDebugHelpers.h"
-
 ABaseWeapon::ABaseWeapon()
 {
 	PrimaryActorTick.bCanEverTick = false;
@@ -89,6 +87,7 @@ FHitResult ABaseWeapon::MakeTrace() const
 
 	FCollisionQueryParams CollisionQueryParams;
 	CollisionQueryParams.AddIgnoredActor(GetOwner());
+	CollisionQueryParams.bReturnPhysicalMaterial = true;
 
 	FVector Start = ViewLocation + Direction * BlindAreaSize;
 	FVector End = ViewLocation + Direction * MaxShotDistance;
@@ -96,7 +95,6 @@ FHitResult ABaseWeapon::MakeTrace() const
 	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility, CollisionQueryParams);
 
 	End = HitResult.bBlockingHit ? HitResult.ImpactPoint : End;
-	DrawDebugLine(GetWorld(), MuzzleLocation, End, FColor::Red, false, 5.f, 0, 2.f);
 
 	return HitResult;
 }

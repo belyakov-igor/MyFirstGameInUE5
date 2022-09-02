@@ -1,6 +1,7 @@
 #include "Weapons/Actors/RifleWeapon.h"
 
 #include "Weapons/Components/AmmoComponent.h"
+#include "Weapons/Components/StandardFirearmFXComponent.h"
 #include "Global/Utilities/Components/DamageTakerComponent.h"
 
 #include "GameFramework/Character.h"
@@ -8,6 +9,7 @@
 ARifleWeapon::ARifleWeapon()
 {
 	AmmoComponent = CreateDefaultSubobject<UAmmoComponent>("AmmoComponent");
+	StandardFirearmFXComponent = CreateDefaultSubobject<UStandardFirearmFXComponent>("StandardFirearmFXComponent");
 }
 
 void ARifleWeapon::BeginPlay()
@@ -40,6 +42,7 @@ void ARifleWeapon::BeginAttack()
 				Character->PlayAnimMontage(IsCrouching ? CrouchFireAnimMontage : UprightFireAnimMontage);
 				AmmoComponent->DecreaseClip(1);
 				FHitResult HitResult = MakeTrace();
+				StandardFirearmFXComponent->PlayFX(HitResult, WeaponMesh, MuzzleSocketName);
 				if (!HitResult.bBlockingHit)
 				{
 					return;

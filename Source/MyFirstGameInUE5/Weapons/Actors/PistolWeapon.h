@@ -28,6 +28,9 @@ public:
     class UAmmoComponent* AmmoComponent;
 
     UPROPERTY(EditDefaultsOnly, Category = "General")
+    class UStandardFirearmFXComponent* StandardFirearmFXComponent;
+
+    UPROPERTY(EditDefaultsOnly, Category = "General")
     float TimeBetweenShots = 0.3f;
 
     UPROPERTY(EditDefaultsOnly, Category = "General")
