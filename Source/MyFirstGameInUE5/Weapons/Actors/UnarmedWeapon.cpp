@@ -2,11 +2,11 @@
 
 #include "Animation/UnarmedHitAnimNotify.h"
 #include "Animation/AttackEndedAnimNotify.h"
-#include "Characters/PlayerCharacterBase.h"
 #include "Global/Utilities/Components/DamageTakerComponent.h"
 
 #include "Animation/AnimMontage.h"
 #include "GameFramework/CharacterMovementComponent.h"
+#include "GameFramework/Character.h"
 #include "Kismet/KismetSystemLibrary.h"
 #include "Engine/EngineTypes.h"
 #include "Camera/CameraComponent.h"
@@ -109,7 +109,7 @@ void AUnarmedWeapon::OnAttackFinishedNotify(USkeletalMeshComponent* Mesh)
 		return;
 	}
 
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
+	auto Character = Cast<ACharacter>(GetOwner());
 	if (Character == nullptr)
 	{
 		checkNoEntry();

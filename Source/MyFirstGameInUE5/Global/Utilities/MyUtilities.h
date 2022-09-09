@@ -42,7 +42,7 @@ public:
 };
 
 UENUM(BlueprintType)
-enum EPlayerCharacterBaseAnimationSet
+enum ECharacterAnimationSet
 {
 	Unarmed     UMETA(DisplayName = "Unarmed"),
 	Pistol      UMETA(DisplayName = "Pistol"),

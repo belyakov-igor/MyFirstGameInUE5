@@ -48,8 +48,8 @@ public:
 	virtual void BeginAttack() {}
 	virtual void EndAttack() {}
 
-	virtual EPlayerCharacterBaseAnimationSet GetCharacterAnimationSet() const
-	{ return EPlayerCharacterBaseAnimationSet::Unarmed; };
+	virtual ECharacterAnimationSet GetCharacterAnimationSet() const
+	{ return ECharacterAnimationSet::Unarmed; };
 
 	bool AttackIsBeingPerformed() const { return bAttackIsBeingPerformed; }
 

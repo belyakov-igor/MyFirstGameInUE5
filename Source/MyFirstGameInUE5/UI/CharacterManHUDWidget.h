@@ -14,20 +14,23 @@ class MYFIRSTGAMEINUE5_API UCharacterManHUDWidget : public UUserWidget
 
 public:
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "UI")
 	void UpdateWeaponAndAmmo();
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "UI")
 	void UpdateHealth();
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "UI")
 	void UpdateStamina();
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "UI")
 	void UpdateCrosshairVisibility(bool Visible);
 
-	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "UI")
 	void ChangeInteractingHUDText(const FText& Text);
+
+	UFUNCTION(BlueprintImplementableEvent, BlueprintCallable, Category = "UI")
+	void HealthDecreased();
 
 protected:
 	UFUNCTION(BlueprintCallable, Category = "UI")
@@ -38,11 +41,4 @@ protected:
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	bool GetCharacterStaminaUIData(int32& Stamina, int32& MaxStamina) const;
-
-private:
-	void UpdateWeaponAndAmmo_Implementation() {}
-	void UpdateHealth_Implementation() {}
-	void UpdateStamina_Implementation() {}
-	void UpdateCrosshairVisibility_Implementation(bool) {}
-	void ChangeInteractingHUDText_Implementation(const FText& Text) {}
 };

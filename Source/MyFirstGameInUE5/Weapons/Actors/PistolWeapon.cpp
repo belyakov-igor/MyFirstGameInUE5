@@ -1,6 +1,6 @@
 #include "Weapons/Actors/PistolWeapon.h"
 
-#include "Characters/PlayerCharacterBase.h"
+#include "GameFramework/Character.h"
 
 #include "Weapons/Components/AmmoComponent.h"
 #include "Weapons/Components/StandardFirearmFXComponent.h"
@@ -29,7 +29,7 @@ void APistolWeapon::BeginAttack()
 	{
 		return;
 	}
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
+	auto Character = Cast<ACharacter>(GetOwner());
 	if (Character == nullptr)
 	{
 		return;

@@ -1,9 +1,7 @@
 #include "MyFirstGameInUE5GameModeBase.h"
-#include "Characters/PlayerCharacterBase.h"
-#include "Characters/PlayerPlayerControllerBase.h"
+#include "Characters/PlayerCharacter.h"
 
 AMyFirstGameInUE5GameModeBase::AMyFirstGameInUE5GameModeBase()
 {
-	DefaultPawnClass = APlayerCharacterBase::StaticClass();
-	PlayerControllerClass = APlayerPlayerControllerBase::StaticClass();
+	DefaultPawnClass = APlayerCharacter::StaticClass();
 }

@@ -15,8 +15,8 @@ public:
 
     virtual void BeginAttack() override;
 
-	virtual EPlayerCharacterBaseAnimationSet GetCharacterAnimationSet() const override
-    { return EPlayerCharacterBaseAnimationSet::Pistol; }
+	virtual ECharacterAnimationSet GetCharacterAnimationSet() const override
+    { return ECharacterAnimationSet::Pistol; }
 
     UPROPERTY(EditDefaultsOnly, Category = "Animation")
     class UAnimMontage* CrouchFireAnimMontage;

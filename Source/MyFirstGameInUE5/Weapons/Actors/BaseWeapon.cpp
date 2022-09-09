@@ -1,6 +1,6 @@
 #include "Weapons/Actors/BaseWeapon.h"
 
-#include "Characters/PlayerCharacterBase.h"
+#include "GameFramework/Character.h"
 #include "Weapons/Components/AmmoComponent.h"
 
 ABaseWeapon::ABaseWeapon()
@@ -15,7 +15,7 @@ void ABaseWeapon::AttachToOwner(ACharacter* NewOwner)
 {
 	static const FAttachmentTransformRules AttachmentRules(EAttachmentRule::SnapToTarget, false);
 
-	check(Cast<APlayerCharacterBase>(NewOwner) != nullptr);
+	check(Cast<ACharacter>(NewOwner) != nullptr);
 	check(RootComponent != nullptr);
 	SetOwner(NewOwner);
 	auto f = RootComponent->AttachToComponent(GetCharacterMesh(), AttachmentRules, HandGripSocketName);
@@ -63,7 +63,7 @@ FHitResult ABaseWeapon::MakeTrace() const
 {
 	FHitResult HitResult;
 
-	auto Character = Cast<APlayerCharacterBase>(GetOwner());
+	auto Character = Cast<ACharacter>(GetOwner());
 	check(Character != nullptr);
 	
 	const auto Controller = Character->GetController<APlayerController>();
