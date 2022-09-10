@@ -80,6 +80,8 @@ public:
 
 	void ChangeClip();
 
+	bool IsEmpty() const { return GetClipAmount() == 0 && GetArsenalAmount() == 0; }
+
 private:
 	int32 ArsenalAmmo;
 	int32 ClipAmmo;

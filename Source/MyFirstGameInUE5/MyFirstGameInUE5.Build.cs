@@ -15,6 +15,9 @@ public class MyFirstGameInUE5 : ModuleRules
 			, "InputCore"
 			, "Niagara"
 			, "PhysicsCore"
+			, "GameplayTasks"
+			, "NavigationSystem"
+			, "AIModule"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });

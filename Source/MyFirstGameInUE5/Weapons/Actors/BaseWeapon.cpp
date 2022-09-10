@@ -65,20 +65,27 @@ FHitResult ABaseWeapon::MakeTrace() const
 
 	auto Character = Cast<ACharacter>(GetOwner());
 	check(Character != nullptr);
-	
+
 	const auto Controller = Character->GetController<APlayerController>();
-	if (!Controller)
-	{
-		return HitResult;
-	}
+	bool PlayerControlled = Controller != nullptr;
+
+	check(WeaponMesh != nullptr);
+	FVector MuzzleLocation = GetMuzzleSocketTransform().GetLocation();
 
 	FVector ViewLocation;
 	FRotator ViewRotation;
-	Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+	if (PlayerControlled)
+	{
+		Controller->GetPlayerViewPoint(ViewLocation, ViewRotation);
+	}
+	else
+	{
+		ViewLocation = MuzzleLocation;
+		ViewRotation = Character->GetControlRotation();
+	}
 
 	FVector Direction = ViewRotation.Vector();
-	FVector MuzzleLocation = WeaponMesh->GetSocketTransform(MuzzleSocketName).GetLocation();
-	float BlindAreaSize = FVector::DotProduct(MuzzleLocation - ViewLocation, Direction);
+	float BlindAreaSize = PlayerControlled ? FVector::DotProduct(MuzzleLocation - ViewLocation, Direction) : 0.f;
 
 	if (BulletSpread > 0.f)
 	{
@@ -97,4 +104,10 @@ FHitResult ABaseWeapon::MakeTrace() const
 	End = HitResult.bBlockingHit ? HitResult.ImpactPoint : End;
 
 	return HitResult;
+}
+
+FTransform ABaseWeapon::GetMuzzleSocketTransform() const
+{
+	check(WeaponMesh != nullptr);
+	return WeaponMesh->GetSocketTransform(MuzzleSocketName);
 }

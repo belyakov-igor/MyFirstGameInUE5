@@ -15,8 +15,6 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "Math/UnrealMathUtility.h"
 
-DEFINE_LOG_CATEGORY_STATIC(CharacterBase, All, All);
-
 ACharacterBase::ACharacterBase()
 {
 	PrimaryActorTick.bCanEverTick = true;
@@ -337,7 +335,7 @@ void ACharacterBase::FState_Aim_TransitionAimToNoAim::Tick(float DeltaTime)
 
 void ACharacterBase::FState_Aim_TransitionAimToNoAim::TakeOver()
 {
-	auto Rotation = Character.GetAimRotation();
+	auto Rotation = Character.GetControlRotation();
 	Rotation.Pitch = 0.f;
 	Character.AimRotationCurrent = Rotation;
 	Character.RangedWeaponManagerComponent->EndAttack();
@@ -388,7 +386,7 @@ void ACharacterBase::UprightToCrouchTransitionCallback(float Coef)
 
 void ACharacterBase::SetAimRotation(float coef)
 {
-	FRotator Rotation = GetAimRotation();
+	FRotator Rotation = GetControlRotation();
 	Rotation.Pitch = 0.f;
 	GetCapsuleComponent()->SetWorldRotation(FMath::Lerp(AimRotationCurrent, Rotation, coef));
 }
@@ -463,7 +461,7 @@ void ACharacterBase::BeginAttack()
 {
 	if (CanMakeMeleeAttack())
 	{
-		SmoothlyOrientSelfToWorldYawValue(GetAimRotation().Yaw);
+		SmoothlyOrientSelfToWorldYawValue(GetControlRotation().Yaw);
 		MeleeWeaponManagerComponent->BeginAttack();
 	}
 	else if (CanMakeRangedAttack())
@@ -562,6 +560,7 @@ void ACharacterBase::TakeDamageCallback(FName BoneName, float Damage)
 	{
 		Damage *= HeadShotDamageMultiplier;
 	}
+	Damage -= Damage * ArmorDamageModifier;
 	HealthComponent->Decrease(static_cast<int32>(Damage));
 }
 
@@ -674,4 +673,15 @@ void ACharacterBase::OnWeaponAndAmmoChanged()
 		check(Weapon != nullptr);
 		AnimationSet = Weapon->GetCharacterAnimationSet();
 	}
+}
+
+FTransform ACharacterBase::GetCurrentWeaponMuzzleSocketTransform() const
+{
+	auto Transform = GetActorTransform();
+	auto Weapon = RangedWeaponManagerComponent->GetCurrentWeapon();
+	if (Weapon)
+	{
+		Transform = Weapon->GetMuzzleSocketTransform();
+	}
+	return Transform;
 }

@@ -59,6 +59,12 @@ public:
 
 	FSignalSignature OnAttackFinished;
 
+	virtual float GetDPS() const { checkNoEntry(); return 0.f; }
+
+	FHitResult MakeTrace() const;
+
+	FTransform GetMuzzleSocketTransform() const;
+
 protected:
 	bool bAttackIsBeingPerformed = false;
 
@@ -66,6 +72,4 @@ protected:
 
 	USkeletalMeshComponent* GetCharacterMesh() const;
 	std::pair<ACharacter*, USkeletalMeshComponent*> GetCharacterAndCharacterMesh() const;
-
-	FHitResult MakeTrace() const;
 };

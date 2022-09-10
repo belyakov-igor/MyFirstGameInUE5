@@ -2,10 +2,6 @@
 
 #include "Global/Utilities/MyUtilities.h"
 
-#include "Weapons/Components/WeaponManagerComponent.h"
-#include "Weapons/Components/AmmoComponent.h"
-#include "Weapons/Actors/BaseWeapon.h"
-
 #include "GameFramework/Pawn.h"
 
 FText AWeaponPickup::FocusText()
@@ -15,34 +11,9 @@ FText AWeaponPickup::FocusText()
 
 void AWeaponPickup::Interact(class APawn* Pawn)
 {
-	if (Pawn == nullptr)
+	if (UMyUtilities::SpawnAndAddWeaponToCharacter(Pawn, WeaponClass, AmmoAmount))
 	{
-		return;
+		Destroy();
 	}
-	auto WMComponent = Cast<UWeaponManagerComponent>(Pawn->GetDefaultSubobjectByName(RangedWeaponManagerComponentName));
-	if (WMComponent == nullptr)
-	{
-		return;
-	}
-	auto World = GetWorld();
-	if (World == nullptr)
-	{
-		return;
-	}
-	auto Weapon = World->SpawnActor<ABaseWeapon>(WeaponClass);
-	if (Weapon == nullptr)
-	{
-		return;
-	}
-	auto AmmoComponent = Cast<UAmmoComponent>(Weapon->FindComponentByClass(UAmmoComponent::StaticClass()));
-	if (AmmoComponent != nullptr)
-	{
-		AmmoComponent->MakeArsenalEmpty();
-		AmmoComponent->MakeClipEmpty();
-		AmmoComponent->IncreaseArsenal(AmmoAmount);
-		AmmoComponent->ChangeClip();
-	}
-	WMComponent->AddWeapon(Weapon);
-	Destroy();
 	return;
 }

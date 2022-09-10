@@ -65,6 +65,10 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
 	float HeadShotDamageMultiplier = 2.f;
 
+	// How much damage is absorbed (0 - character takes full damage, 1 - character is invulnerable)
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
+	float ArmorDamageModifier = 0.f;
+
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
 	FName HeadBoneName = "head";
 
@@ -122,11 +126,10 @@ public:
 
 	virtual void OnWeaponAndAmmoChanged();
 
+	FTransform GetCurrentWeaponMuzzleSocketTransform() const;
+
 protected:
 	virtual void BeginPlay() override;
-
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attack")
-	virtual FRotator GetAimRotation() const { checkNoEntry(); return FRotator::ZeroRotator; }
 
 	struct FCravings
 	{
@@ -246,8 +249,10 @@ private:
 // } SmoothlyOrientSelfToWorldYawValue
 
 // Damage {
-protected:
+public:
 	virtual void Die();
+	bool IsDead() const { return bIsDead; }
+private:
 	bool bIsDead = false;
 
 private:

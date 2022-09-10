@@ -39,6 +39,8 @@ public:
         }
         return nullptr;
     }
+
+    static bool SpawnAndAddWeaponToCharacter(APawn* Character, TSubclassOf<class ABaseWeapon> WeaponClass, int32 AmmoAmount);
 };
 
 UENUM(BlueprintType)

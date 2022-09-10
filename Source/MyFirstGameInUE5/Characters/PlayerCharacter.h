@@ -14,8 +14,6 @@ class MYFIRSTGAMEINUE5_API APlayerCharacter : public ACharacterBase
 public:
 	APlayerCharacter();
 
-	virtual FRotator GetAimRotation() const override;
-
 protected:
 	virtual void BeginPlay() override;
 

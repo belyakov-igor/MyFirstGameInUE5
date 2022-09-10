@@ -28,11 +28,6 @@ APlayerCharacter::APlayerCharacter()
 	bUseControllerRotationYaw = false;
 }
 
-FRotator APlayerCharacter::GetAimRotation() const
-{
-	return CameraComponent->GetComponentRotation();
-}
-
 void APlayerCharacter::BeginPlay()
 {
 	SpringArmSocketOffsetZBackup = SpringArmComponent->SocketOffset.Z;

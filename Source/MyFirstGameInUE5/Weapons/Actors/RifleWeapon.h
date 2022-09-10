@@ -40,6 +40,8 @@ public:
     UPROPERTY(EditDefaultsOnly, Category = "General")
     float BulletMomentum = 900.f;
 
+    virtual float GetDPS() const override { return Damage / TimeBetweenShots; }
+
 protected:
     virtual void BeginPlay() override;
 

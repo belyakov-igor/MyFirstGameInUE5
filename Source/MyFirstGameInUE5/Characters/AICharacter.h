@@ -14,9 +14,8 @@ class MYFIRSTGAMEINUE5_API AAICharacter : public ACharacterBase
 public:
 	AAICharacter();
 
-	virtual FRotator GetAimRotation() const override { return AimRotation; }
-	void SetAimRotation(FRotator Rotator) { AimRotation = Rotator; }
+	void Crouch(bool Crouch);
 
-private:
-	FRotator AimRotation = FRotator::ZeroRotator;
+protected:
+	virtual void Die() override;
 };
