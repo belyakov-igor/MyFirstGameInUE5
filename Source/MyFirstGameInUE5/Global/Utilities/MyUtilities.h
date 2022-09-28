@@ -11,6 +11,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FTextMulticastSignature, const FText&);
 DECLARE_MULTICAST_DELEGATE(FSignalMulticastSignature);
 
 DECLARE_DELEGATE(FSignalSignature);
+DECLARE_DELEGATE_OneParam(FInt32Signature, int32);
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSignalMulticastDynamicSignature);
 

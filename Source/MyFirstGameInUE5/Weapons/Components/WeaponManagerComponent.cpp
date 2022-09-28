@@ -62,7 +62,7 @@ void UWeaponManagerComponent::AddWeapon(ABaseWeapon* Weapon)
 	}
 }
 
-bool UWeaponManagerComponent::SetCurrentWeaponSlot(int32 Slot)
+void UWeaponManagerComponent::SetCurrentWeaponSlot(int32 Slot)
 {
 	checkf(
 		Slot >= MinWeaponSlot && Slot <= MaxWeaponSlot
@@ -70,7 +70,7 @@ bool UWeaponManagerComponent::SetCurrentWeaponSlot(int32 Slot)
 	);
 	if (Weapons[Slot] == nullptr)
 	{
-		return false;
+		return;
 	}
 
 	bool bSlotChanged = Weapons[CurrentWeaponSlot] == nullptr;
@@ -96,7 +96,7 @@ bool UWeaponManagerComponent::SetCurrentWeaponSlot(int32 Slot)
 		OnWeaponAndAmmoChanged.Execute();
 	}
 
-	return true;
+	return;
 }
 
 void UWeaponManagerComponent::SetNextWeapon()

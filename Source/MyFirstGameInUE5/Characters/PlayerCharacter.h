@@ -67,17 +67,6 @@ private:
 	void OnRunButtonPressed();
 	void OnRunButtonReleased();
 	void OnJumpButtonPressed();
-
-	void OnWeapon1Pressed();
-	void OnWeapon2Pressed();
-	void OnWeapon3Pressed();
-	void OnWeapon4Pressed();
-	void OnWeapon5Pressed();
-	void OnWeapon6Pressed();
-	void OnWeapon7Pressed();
-	void OnWeapon8Pressed();
-	void OnWeapon9Pressed();
-	void OnWeapon0Pressed();
 // } Action and axis mappings
 
 // Camera pitch {

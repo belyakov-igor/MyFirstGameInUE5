@@ -116,16 +116,18 @@ void APlayerCharacter::SetupPlayerInputComponent(UInputComponent* PlayerInputCom
 	PlayerInputComponent->BindAction("Reload", EInputEvent::IE_Pressed, RangedWeaponManagerComponent, &UWeaponManagerComponent::Reload);
 	PlayerInputComponent->BindAction("Interact", EInputEvent::IE_Pressed, InteractingComponent, &UInteractingComponent::Interact);
 
-	PlayerInputComponent->BindAction("Weapon 1", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon1Pressed);
-	PlayerInputComponent->BindAction("Weapon 2", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon2Pressed);
-	PlayerInputComponent->BindAction("Weapon 3", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon3Pressed);
-	PlayerInputComponent->BindAction("Weapon 4", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon4Pressed);
-	PlayerInputComponent->BindAction("Weapon 5", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon5Pressed);
-	PlayerInputComponent->BindAction("Weapon 6", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon6Pressed);
-	PlayerInputComponent->BindAction("Weapon 7", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon7Pressed);
-	PlayerInputComponent->BindAction("Weapon 8", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon8Pressed);
-	PlayerInputComponent->BindAction("Weapon 9", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon9Pressed);
-	PlayerInputComponent->BindAction("Weapon 0", EInputEvent::IE_Pressed, this, &APlayerCharacter::OnWeapon0Pressed);
+	auto WM_SetCurrentWeaponSlot = &UWeaponManagerComponent::SetCurrentWeaponSlot;
+	auto Pressed = EInputEvent::IE_Pressed;
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 1", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 1);
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 2", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 2);
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 3", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 3);
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 4", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 4);
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 5", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 5);
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 6", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 6);
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 7", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 7);
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 8", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 8);
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 9", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 9);
+	PlayerInputComponent->BindAction<FInt32Signature>("Weapon 0", Pressed, RangedWeaponManagerComponent, WM_SetCurrentWeaponSlot, 0);
 }
 
 void APlayerCharacter::MoveForward(float Amount)
@@ -194,17 +196,6 @@ void APlayerCharacter::OnJumpButtonPressed()
 		Jump();
 	}
 }
-
-void APlayerCharacter::OnWeapon1Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(1); }
-void APlayerCharacter::OnWeapon2Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(2); }
-void APlayerCharacter::OnWeapon3Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(3); }
-void APlayerCharacter::OnWeapon4Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(4); }
-void APlayerCharacter::OnWeapon5Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(5); }
-void APlayerCharacter::OnWeapon6Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(6); }
-void APlayerCharacter::OnWeapon7Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(7); }
-void APlayerCharacter::OnWeapon8Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(8); }
-void APlayerCharacter::OnWeapon9Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(9); }
-void APlayerCharacter::OnWeapon0Pressed() { RangedWeaponManagerComponent->SetCurrentWeaponSlot(0); }
 
 void APlayerCharacter::RestoreBackupCameraPitch()
 {

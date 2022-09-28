@@ -20,7 +20,7 @@ protected:
 	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 	UPROPERTY(EditAnywhere, Category = "Cover", meta = (ClampMin = 0.2f))
-	float TimeInCover = 1.5f;
+	float TimeInCover = 4.f;
 
 private:
 	class AAIControllerBase* Controller;
@@ -31,5 +31,10 @@ private:
 	UFUNCTION()
 	void OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result);
 
+	UFUNCTION()
+	void OnDamageTaken(FName BoneName, float Damage);
+
 	class APlaceToCover* FindCover(UBehaviorTreeComponent& OwnerComp) const;
+
+	void TimeInCoverExpired(bool Succeeded);
 };

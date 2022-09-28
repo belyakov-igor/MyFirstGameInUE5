@@ -50,7 +50,7 @@ void AAIControllerBase::InitBlackboardAndBehaviorTree()
 
 void AAIControllerBase::SubscribeToDamageTakerMomentumDelegate()
 {
-    auto DamageTakerComponent = Cast<UDamageTakerComponent>(GetPawn()->FindComponentByClass<UDamageTakerComponent>());
+    auto DamageTakerComponent = GetPawn()->FindComponentByClass<UDamageTakerComponent>();
     check(DamageTakerComponent != nullptr);
     DamageTakerComponent->MomentumTaken.AddDynamic(this, &AAIControllerBase::OnMomentumTaken);
 }

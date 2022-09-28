@@ -30,7 +30,7 @@ public:
 
 	/** Return true if succeeded*/
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	bool SetCurrentWeaponSlot(int32 Slot);
+	void SetCurrentWeaponSlot(int32 Slot);
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void SetNextWeapon();

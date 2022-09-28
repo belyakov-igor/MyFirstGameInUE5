@@ -3,6 +3,7 @@
 #include "Controllers/AIControllerBase.h"
 #include "Characters/AICharacter.h"
 #include "AI/Actors/PlaceToCover.h"
+#include "Global/Utilities/Components/DamageTakerComponent.h"
 
 #include "BehaviorTree/BlackboardComponent.h"
 #include "Kismet/GameplayStatics.h"
@@ -66,28 +67,43 @@ void UAMyTaskTakeCover::OnMoveCompleted(FAIRequestID RequestID, EPathFollowingRe
 	if (Pawn != nullptr)
 	{
 		Controller->SetFocalPoint(Pawn->GetActorLocation() + CurrentCoverOrientation);
+		auto DamageTakerComponent = Pawn->FindComponentByClass<UDamageTakerComponent>();
+		check(DamageTakerComponent != nullptr);
+		DamageTakerComponent->DamageTaken.AddDynamic(this, &UAMyTaskTakeCover::OnDamageTaken);
 	}
 
 	Controller->ReceiveMoveCompleted.RemoveDynamic(this, &UAMyTaskTakeCover::OnMoveCompleted);
 
 	GetWorld()->GetTimerManager().SetTimer(
 		TimerHandle
-		, 
-			[this]
-			{
-				check(Controller != nullptr);
-				Controller->ClearFocus(EAIFocusPriority::Gameplay);
-				if (auto Character = Cast<AAICharacter>(Controller->GetPawn()); Character != nullptr)
-				{
-					Character->Crouch(false);
-				}
-				auto Tree = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
-				check(Tree != nullptr);
-				FinishLatentTask(*Tree, EBTNodeResult::Succeeded);
-			}
+		, [this]{ TimeInCoverExpired(true); }
 		, TimeInCover
 		, /*bInLoop*/ false
 	);
+}
+
+void UAMyTaskTakeCover::TimeInCoverExpired(bool Succeeded)
+{
+	check(Controller != nullptr);
+	Controller->ClearFocus(EAIFocusPriority::Gameplay);
+	if (auto Character = Cast<AAICharacter>(Controller->GetPawn()); Character != nullptr)
+	{
+		Character->Crouch(false);
+	}
+	auto Tree = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
+	check(Tree != nullptr);
+	FinishLatentTask(*Tree, Succeeded ? EBTNodeResult::Succeeded : EBTNodeResult::Failed);
+}
+
+void UAMyTaskTakeCover::OnDamageTaken(FName BoneName, float Damage)
+{
+	check(Controller != nullptr);
+	auto Pawn = Controller->GetPawn();
+	auto DamageTakerComponent = Pawn->FindComponentByClass<UDamageTakerComponent>();
+	check(DamageTakerComponent != nullptr);
+	DamageTakerComponent->DamageTaken.RemoveDynamic(this, &UAMyTaskTakeCover::OnDamageTaken);
+
+	TimeInCoverExpired(false);
 }
 
 class APlaceToCover* UAMyTaskTakeCover::FindCover(UBehaviorTreeComponent& OwnerComp) const
