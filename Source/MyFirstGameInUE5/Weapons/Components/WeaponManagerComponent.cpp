@@ -4,6 +4,8 @@
 #include "Weapons/Components/AmmoComponent.h"
 
 #include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundCue.h"
 
 UWeaponManagerComponent::UWeaponManagerComponent()
 {
@@ -86,14 +88,16 @@ void UWeaponManagerComponent::SetCurrentWeaponSlot(int32 Slot)
 	}
 
 	CurrentWeaponSlot = Slot;
-	if (bWeaponIsVisible && Weapons[Slot]->WeaponMesh != nullptr)
+	auto Weapon = Weapons[CurrentWeaponSlot];
+	if (bWeaponIsVisible && Weapon->WeaponMesh != nullptr)
 	{
-		Weapons[Slot]->WeaponMesh->SetVisibility(true);
+		Weapon->WeaponMesh->SetVisibility(true);
 	}
 
 	if (bSlotChanged)
 	{
 		OnWeaponAndAmmoChanged.Execute();
+		UGameplayStatics::SpawnSoundAttached(Weapon->EquipSound, Weapon->WeaponMesh, Weapon->HandGripSocketName);
 	}
 
 	return;

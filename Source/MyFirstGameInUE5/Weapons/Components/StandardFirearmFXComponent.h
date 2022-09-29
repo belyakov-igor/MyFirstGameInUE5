@@ -33,6 +33,9 @@ struct FSurfaceImpactData
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "VFX")
     FDecalData DecalData;
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Sound")
+    class USoundCue* ImpactSound = nullptr;
 };
 
 UCLASS(ClassGroup=(Custom), meta=(BlueprintSpawnableComponent))
@@ -51,6 +54,9 @@ public:
 
     UPROPERTY(EditDefaultsOnly, Category = "VFX")
     FString TraceEndVariableName = "TraceEnd";
+
+    UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Sound")
+    class USoundCue* ShotSound = nullptr;
 
     UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "VFX")
     FSurfaceImpactData DefaultSurfaceImpactData;

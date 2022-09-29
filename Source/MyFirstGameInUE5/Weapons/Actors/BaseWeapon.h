@@ -45,6 +45,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Animation")
 	bool IsCrouching = false;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sound")
+	class USoundCue* ReloadSound = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sound")
+	class USoundCue* EquipSound = nullptr;
+
 	virtual void BeginAttack() {}
 	virtual void EndAttack() {}
 

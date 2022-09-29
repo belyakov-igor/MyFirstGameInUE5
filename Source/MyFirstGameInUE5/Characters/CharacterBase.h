@@ -96,6 +96,12 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Stamina", meta = (ClampMin = 0))
 	int32 AmountOfStaminaRegeneration = 1;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Sound")
+	class USoundCue* DefaultFootstepSound = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Sound")
+	TMap<class UPhysicalMaterial*, class USoundCue*> SurfaceFootstepSoundMap;
+
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Locomotion")
 	bool IsInRunState() const;

@@ -5,6 +5,7 @@
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Kismet/GameplayStatics.h"
 #include "Components/DecalComponent.h"
+#include "Sound/SoundCue.h"
 
 UStandardFirearmFXComponent::UStandardFirearmFXComponent()
 {
@@ -27,7 +28,13 @@ void UStandardFirearmFXComponent::PlayFX(FHitResult Hit, USkeletalMeshComponent*
         );
     }
 
-    if (BulletTraceNiagaraEffect != nullptr)
+    if (ShotSound != nullptr)
+    {
+        check(WeaponMesh != nullptr);
+        UGameplayStatics::SpawnSoundAttached(ShotSound, WeaponMesh, MuzzleSocketName);
+    }
+
+    if (BulletTraceNiagaraEffect != nullptr, WeaponMesh)
     {
         const auto TraceFXComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
             GetWorld()
@@ -72,5 +79,10 @@ void UStandardFirearmFXComponent::PlayFX(FHitResult Hit, USkeletalMeshComponent*
         {
             DecalComponent->SetFadeOut(SurfaceImpactData.DecalData.LifeTime, SurfaceImpactData.DecalData.FadeoutTime);
         }
+    }
+
+    if (SurfaceImpactData.ImpactSound != nullptr)
+    {
+        UGameplayStatics::PlaySoundAtLocation(GetWorld(), SurfaceImpactData.ImpactSound, Hit.ImpactPoint);
     }
 }

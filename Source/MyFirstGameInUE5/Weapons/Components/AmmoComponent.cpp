@@ -6,6 +6,8 @@
 #include "Animation/ReloadFinishedAnimNotify.h"
 
 #include "GameFramework/Character.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundCue.h"
 
 UAmmoComponent::UAmmoComponent()
 {
@@ -107,6 +109,10 @@ int32 UAmmoComponent::DecreaseClip(int32 Amount)
 
 void UAmmoComponent::Reload()
 {
+	if (ArsenalAmmo == 0)
+	{
+		return;
+	}
 	if (ReloadAnimMontage == nullptr)
 	{
 		checkf(false, TEXT("Reload anim montage should be set."));
@@ -118,6 +124,7 @@ void UAmmoComponent::Reload()
 	auto Character = Cast<ACharacter>(Weapon->GetOwner());
 	check(Character != nullptr);
 
+	UGameplayStatics::SpawnSoundAttached(Weapon->ReloadSound, Weapon->WeaponMesh, Weapon->HandGripSocketName);
 	Character->PlayAnimMontage(ReloadAnimMontage);
 }
 
