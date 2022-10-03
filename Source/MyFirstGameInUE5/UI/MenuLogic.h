@@ -14,8 +14,6 @@ public:
 	AMenuLogic();
 
 protected:
-	virtual void BeginPlay() override;
-	
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void Init(TMap<FName, TSubclassOf<class UMenuWidget>> WidgetClasses, FName StartupWidgetName);
 
@@ -31,13 +29,15 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void ShowPreviousWidget();
 
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
+
 private:
 	FName StartupWidgetName;
-	using WidgetArray = TArray<class UMenuWidget*>;
 
-	WidgetArray Widgets;
-	WidgetArray WidgetStack;
+	UPROPERTY()
+	TArray<class UMenuWidget*> Widgets;
+	TArray<class UMenuWidget*> WidgetStack;
 
-	void ShowWidget(WidgetArray::SizeType Index);
+	void ShowWidget(TArray<class UMenuWidget*>::SizeType Index);
 	void HideWidget();
 };

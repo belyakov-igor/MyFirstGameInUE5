@@ -11,11 +11,6 @@ AMenuLogic::AMenuLogic()
 	PrimaryActorTick.bCanEverTick = false;
 }
 
-void AMenuLogic::BeginPlay()
-{
-	Super::BeginPlay();
-}
-
 void AMenuLogic::Init(TMap<FName, TSubclassOf<UMenuWidget>> WidgetClasses, FName NewStartupWidgetName)
 {
 	checkf(!WidgetClasses.IsEmpty(), TEXT("WidgetClasses should not be empty"));
@@ -34,16 +29,23 @@ void AMenuLogic::Init(TMap<FName, TSubclassOf<UMenuWidget>> WidgetClasses, FName
 
 void AMenuLogic::OpenUI()
 {
-	UGameplayStatics::GetPlayerController(GetWorld(), 0)->SetShowMouseCursor(true);
+	if (auto PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0); PlayerController != nullptr)
+	{
+		PlayerController->SetShowMouseCursor(true);
+		PlayerController->SetInputMode(FInputModeUIOnly());
+	}
 	ShowNextWidget(StartupWidgetName);
 }
 
 void AMenuLogic::CloseUI()
 {
-	UGameplayStatics::GetPlayerController(GetWorld(), 0)->SetShowMouseCursor(false);
 	HideWidget();
 	WidgetStack.Empty();
-	UWidgetBlueprintLibrary::SetInputMode_GameOnly(UGameplayStatics::GetPlayerController(GetWorld(), 0));
+	if (auto PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0); PlayerController != nullptr)
+	{
+		PlayerController->SetShowMouseCursor(false);
+		PlayerController->SetInputMode(FInputModeGameOnly());
+	}
 }
 
 void AMenuLogic::ShowNextWidget(FName WidgetName)
@@ -71,12 +73,11 @@ void AMenuLogic::ShowPreviousWidget()
 	ShowWidget(WidgetStack.Num() - 1);
 }
 
-void AMenuLogic::ShowWidget(WidgetArray::SizeType Index)
+void AMenuLogic::ShowWidget(TArray<class UMenuWidget*>::SizeType Index)
 {
 	check(Index < Widgets.Num() && Index >= 0);
 	auto Widget = Widgets[Index];
 	Widget->AddToViewport();
-	UWidgetBlueprintLibrary::SetInputMode_UIOnlyEx(UGameplayStatics::GetPlayerController(GetWorld(), 0), Widget);
 }
 
 void AMenuLogic::HideWidget()
@@ -86,4 +87,11 @@ void AMenuLogic::HideWidget()
 		return;
 	}
 	WidgetStack.Top()->RemoveFromParent();
+}
+
+void AMenuLogic::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	CloseUI();
 }

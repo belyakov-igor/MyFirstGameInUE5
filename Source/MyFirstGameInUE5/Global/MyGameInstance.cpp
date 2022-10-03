@@ -1,10 +1,11 @@
 #include "MyGameInstance.h"
 
+#include "Settings.h"
+
 #include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
 #include "GameFramework/GameUserSettings.h"
-
-#include "Settings.h"
+#include "Sound/SoundClass.h"
 
 void UMyGameInstance::UMyGameInstance::Init()
 {
@@ -31,14 +32,12 @@ UMyGameInstance* UMyGameInstance::GetMyGameInstance(const UObject* WorldContextO
 	return static_cast<UMyGameInstance*>(UGameplayStatics::GetGameInstance(WorldContextObject));
 }
 
-void UMyGameInstance::SetMusicVolume(float volume)
+void UMyGameInstance::SetMusicVolume(float Volume)
 {
-	check(volume >= 0 && volume <= 1);
-	Settings->MusicVolume = volume;
-	if (MusicComponent != nullptr)
-	{
-		MusicComponent->SetVolumeMultiplier(Settings->MusicVolume);
-	}
+	checkf(Volume >= 0 && Volume <= 1, TEXT("Volume must be in range [0, 1]"));
+	checkf(MusicSoundClass != nullptr, TEXT("MusicSoundClass should be specified"))
+	Settings->MusicVolume = Volume;
+	MusicSoundClass->Properties.Volume = Volume;UE_LOG(LogTemp, Warning, TEXT("SetMusicVolume"));
 }
 
 float UMyGameInstance::GetMusicVolume()
@@ -113,4 +112,23 @@ void UMyGameInstance::ResumeMusic()
 	}
 	MusicComponent->SetPaused(false);
 	GetTimerManager().UnPauseTimer(MusicTimerHandle);
+}
+
+void UMyGameInstance::SetGameSoundVolume(float Volume)
+{
+	checkf(Volume >= 0 && Volume <= 1, TEXT("Volume must be in range [0, 1]"));
+	checkf(GameSoundSoundClass != nullptr, TEXT("GameSoundSoundClass should be specified"))
+	Settings->GameSoundVolume = Volume;
+	GameSoundSoundClass->Properties.Volume = Volume; UE_LOG(LogTemp, Warning, TEXT("SetGameSoundVolume"));
+}
+
+float UMyGameInstance::GetGameSoundVolume()
+{
+	checkf(GameSoundSoundClass != nullptr, TEXT("GameSoundSoundClass should be specified"))
+	return Settings->GameSoundVolume;
+}
+
+void UMyGameInstance::StartNewGame()
+{
+	UGameplayStatics::OpenLevel(GetWorld(), StartLevelName);
 }

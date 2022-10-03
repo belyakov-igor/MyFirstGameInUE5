@@ -14,6 +14,8 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "Math/UnrealMathUtility.h"
+#include "Kismet/GameplayStatics.h"
+#include "Sound/SoundCue.h"
 
 ACharacterBase::ACharacterBase()
 {
@@ -115,6 +117,33 @@ float ACharacterBase::GetCrouchCoef() const
 bool ACharacterBase::AttackIsBeingPerformed() const
 {
 	return MeleeWeaponManagerComponent->AttackIsBeingPerformed() || RangedWeaponManagerComponent->AttackIsBeingPerformed();
+}
+
+void ACharacterBase::PlayFootstepSound() const
+{
+	auto TraceStart = GetActorLocation();
+	auto TraceEnd = TraceStart;
+	TraceStart.Z -= GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight_WithoutHemisphere();
+	TraceEnd.Z -= GetCapsuleComponent()->GetUnscaledCapsuleHalfHeight() * 1.2f;
+	FHitResult HitResult;
+
+	FCollisionQueryParams CollisionQueryParams;
+	CollisionQueryParams.AddIgnoredActor(this);
+	CollisionQueryParams.bReturnPhysicalMaterial = true;
+
+	GetWorld()->LineTraceSingleByChannel(HitResult, TraceStart, TraceEnd, ECC_Visibility, CollisionQueryParams);
+	if (!HitResult.bBlockingHit)
+	{
+		return;
+	}
+
+	auto FootstepSoundPtr = SurfaceFootstepSoundMap.Find(HitResult.PhysMaterial.Get());
+	if (FootstepSoundPtr == nullptr)
+	{
+		FootstepSoundPtr = &DefaultFootstepSound;
+	}
+	auto FootstepSound = *FootstepSoundPtr;
+	UGameplayStatics::PlaySoundAtLocation(GetWorld(), FootstepSound, HitResult.ImpactPoint);
 }
 
 bool ACharacterBase::RunningIsPossible() const

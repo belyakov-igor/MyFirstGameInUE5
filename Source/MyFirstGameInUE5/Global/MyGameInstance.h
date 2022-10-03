@@ -27,9 +27,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MyGameInstance", meta = (WorldContext = "WorldContextObject"))
 	static UMyGameInstance* GetMyGameInstance(const UObject* WorldContextObject);
 
-// Sound { ////////////////////////////////////////////////////////////////////////////////////////
+// Music { ////////////////////////////////////////////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, Category = "Music")
-	void SetMusicVolume(float volume);
+	void SetMusicVolume(float Volume);
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Music")
 	float GetMusicVolume();
@@ -49,7 +49,27 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Music")
 	void ResumeMusic();
-// } Sound ////////////////////////////////////////////////////////////////////////////////////////
+// } Music ////////////////////////////////////////////////////////////////////////////////////////
+
+// Game Sound { ///////////////////////////////////////////////////////////////////////////////////
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sound")
+	class USoundClass* GameSoundSoundClass = nullptr;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sound")
+	class USoundClass* MusicSoundClass = nullptr;
+
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	void SetGameSoundVolume(float Volume);
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Sound")
+	float GetGameSoundVolume();
+// } Game Sound ///////////////////////////////////////////////////////////////////////////////////
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
+	FName StartLevelName = NAME_None;
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void StartNewGame();
 
 private:
 	UPROPERTY()

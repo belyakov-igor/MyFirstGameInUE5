@@ -128,6 +128,9 @@ public:
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Attack")
 	bool AttackIsBeingPerformed() const;
 
+	UFUNCTION(BlueprintCallable, Category = "Sound")
+	void PlayFootstepSound() const;
+
 	virtual void Landed(const FHitResult& Hit) override;
 
 	virtual void OnWeaponAndAmmoChanged();
