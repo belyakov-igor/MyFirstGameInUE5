@@ -104,7 +104,7 @@ private:
 // } Aim to no aim smooth transition
 
 	UPROPERTY()
-	class UCharacterManHUDWidget* HUDWidget = nullptr;
+	class UWidgetCharacterManHUD* HUDWidget = nullptr;
 
 	void SetMeshOwnerNoSee(bool NoSee);
 

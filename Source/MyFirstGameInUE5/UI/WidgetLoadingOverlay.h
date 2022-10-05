@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 
-#include "LoadingOverlayWidget.generated.h"
+#include "WidgetLoadingOverlay.generated.h"
 
 UCLASS()
-class MYFIRSTGAMEINUE5_API ULoadingOverlayWidget : public UUserWidget
+class MYFIRSTGAMEINUE5_API UWidgetLoadingOverlay : public UUserWidget
 {
 	GENERATED_BODY()
 

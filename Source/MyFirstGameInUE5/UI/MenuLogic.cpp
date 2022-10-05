@@ -11,20 +11,48 @@ AMenuLogic::AMenuLogic()
 	PrimaryActorTick.bCanEverTick = false;
 }
 
-void AMenuLogic::Init(TMap<FName, TSubclassOf<UMenuWidget>> WidgetClasses, FName NewStartupWidgetName)
+void AMenuLogic::BeginPlay()
 {
+	Super::BeginPlay();
+
 	checkf(!WidgetClasses.IsEmpty(), TEXT("WidgetClasses should not be empty"));
-	for (auto [Name, WidgetClass] : WidgetClasses)
+	Widgets.Reserve(WidgetClasses.Num());
+	WidgetStack.Reserve(WidgetClasses.Num());
+	bool bStartupKeyFound = false;
+	for (auto WidgetClass : WidgetClasses)
 	{
-		auto Widget = CreateWidget<UMenuWidget>(GetWorld(), WidgetClass, Name);
+		auto Widget = CreateWidget<UMenuWidget>(GetWorld(), WidgetClass);
 		check(Widget != nullptr);
+		checkf(
+			FindWidget(Widget->Key) == INDEX_NONE
+			, TEXT("There must be only one widget with key \"%s\" in WidgetClasses")
+			, *Widget->Key.ToString()
+		);
+
 		Widget->SetMenuLogic(this);
 		Widgets.Add(Widget);
-		if (Name == NewStartupWidgetName)
+		if (Widget->Key == StartupWidgetKey)
 		{
-			StartupWidgetName = NewStartupWidgetName;
+			bStartupKeyFound = true;
 		}
 	}
+	checkf(
+		bStartupKeyFound
+		, TEXT("WidgetClasses doesn't contain widget with specified StartupWidgetKey = \"%s\"")
+		, *StartupWidgetKey.ToString()
+	);
+}
+
+void AMenuLogic::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	Super::EndPlay(EndPlayReason);
+
+	CloseUI();
+}
+
+TArray<class UMenuWidget*>::SizeType AMenuLogic::FindWidget(FName Key)
+{
+	return Widgets.FindLastByPredicate([Key](const UMenuWidget* Widget) { return Widget->Key == Key; });
 }
 
 void AMenuLogic::OpenUI()
@@ -34,7 +62,7 @@ void AMenuLogic::OpenUI()
 		PlayerController->SetShowMouseCursor(true);
 		PlayerController->SetInputMode(FInputModeUIOnly());
 	}
-	ShowNextWidget(StartupWidgetName);
+	ShowNextWidget(StartupWidgetKey);
 }
 
 void AMenuLogic::CloseUI()
@@ -48,11 +76,11 @@ void AMenuLogic::CloseUI()
 	}
 }
 
-void AMenuLogic::ShowNextWidget(FName WidgetName)
+void AMenuLogic::ShowNextWidget(FName WidgetKey)
 {
 	HideWidget();
-	auto Index = Widgets.FindLastByPredicate([WidgetName](const UUserWidget* Widget){ return Widget->GetName() == WidgetName.ToString(); });
-	checkf(Index != INDEX_NONE, TEXT("Widget with name \"%s\" is not found"), *WidgetName.ToString());
+	auto Index = FindWidget(WidgetKey);
+	checkf(Index != INDEX_NONE, TEXT("Widget with key \"%s\" is not found"), *WidgetKey.ToString());
 	auto Widget = Widgets[Index];
 	WidgetStack.Add(Widget);
 	ShowWidget(Index);
@@ -87,11 +115,4 @@ void AMenuLogic::HideWidget()
 		return;
 	}
 	WidgetStack.Top()->RemoveFromParent();
-}
-
-void AMenuLogic::EndPlay(const EEndPlayReason::Type EndPlayReason)
-{
-	Super::EndPlay(EndPlayReason);
-
-	CloseUI();
 }

@@ -3,7 +3,7 @@
 #include "Utilities/Components/ClampedIntegerComponent.h"
 #include "Weapons/Components/WeaponManagerComponent.h"
 #include "Weapons/Actors/BaseWeapon.h"
-#include "UI/CharacterManHUDWidget.h"
+#include "UI/WidgetCharacterManHUD.h"
 #include "Interaction/InteractingComponent.h"
 #include "Global/Utilities/Components/DamageTakerComponent.h"
 

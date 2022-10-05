@@ -1,4 +1,4 @@
-#include "UI/CharacterManHUDWidget.h"
+#include "UI/WidgetCharacterManHUD.h"
 
 #include "Global/Utilities/Components/ClampedIntegerComponent.h"
 #include "Weapons/Components/WeaponManagerComponent.h"
@@ -6,7 +6,7 @@
 
 #include "GameFramework/Pawn.h"
 
-bool UCharacterManHUDWidget::GetCharacterWeaponUIData(FWeaponUIData& CharacterWeaponUIData) const
+bool UWidgetCharacterManHUD::GetCharacterWeaponUIData(FWeaponUIData& CharacterWeaponUIData) const
 {
 	auto Pawn = GetOwningPlayerPawn<APawn>();
 	if (Pawn == nullptr)
@@ -27,7 +27,7 @@ bool UCharacterManHUDWidget::GetCharacterWeaponUIData(FWeaponUIData& CharacterWe
 	return true;
 }
 
-bool UCharacterManHUDWidget::GetCharacterHealthUIData(int32& Health, int32& MaxHealth) const
+bool UWidgetCharacterManHUD::GetCharacterHealthUIData(int32& Health, int32& MaxHealth) const
 {
 	auto Pawn = GetOwningPlayerPawn<APawn>();
 	if (Pawn == nullptr)
@@ -44,7 +44,7 @@ bool UCharacterManHUDWidget::GetCharacterHealthUIData(int32& Health, int32& MaxH
 	return true;
 }
 
-bool UCharacterManHUDWidget::GetCharacterStaminaUIData(int32& Stamina, int32& MaxStamina) const
+bool UWidgetCharacterManHUD::GetCharacterStaminaUIData(int32& Stamina, int32& MaxStamina) const
 {
 	auto Pawn = GetOwningPlayerPawn<APawn>();
 	if (Pawn == nullptr)

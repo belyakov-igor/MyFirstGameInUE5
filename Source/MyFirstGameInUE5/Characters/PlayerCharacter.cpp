@@ -1,6 +1,6 @@
 #include "PlayerCharacter.h"
 
-#include "UI/CharacterManHUDWidget.h"
+#include "UI/WidgetCharacterManHUD.h"
 #include "Interaction/InteractingComponent.h"
 #include "Utilities/Components/ClampedIntegerComponent.h"
 #include "Utilities/Components/DamageTakerComponent.h"
@@ -44,7 +44,7 @@ void APlayerCharacter::BeginPlay()
 		HUDWidget->UpdateCrosshairVisibility(false);
 		if (auto InteractingComponent_ = FindComponentByClass<UInteractingComponent>(); InteractingComponent != nullptr)
 		{
-			InteractingComponent_->ChangeHUDText.AddUObject(HUDWidget, &UCharacterManHUDWidget::ChangeInteractingHUDText);
+			InteractingComponent_->ChangeHUDText.AddUObject(HUDWidget, &UWidgetCharacterManHUD::ChangeInteractingHUDText);
 		}
 	}
 
@@ -60,7 +60,7 @@ void APlayerCharacter::PossessedBy(AController* NewController)
 	if (NewController != nullptr && Cast<APlayerController>(NewController) != nullptr)
 	{
 		UseUprightCameraPitch(NewController, true);
-		HUDWidget = CreateWidget<UCharacterManHUDWidget>(GetWorld(), HUDWidgetClass, "HUD");
+		HUDWidget = CreateWidget<UWidgetCharacterManHUD>(GetWorld(), HUDWidgetClass, "HUD");
 		check(HUDWidget != nullptr);
 		HUDWidget->AddToViewport();
 		HealthComponent->ValueChanged.AddLambda([this](int32, int32){ HUDWidget->UpdateHealth(); });

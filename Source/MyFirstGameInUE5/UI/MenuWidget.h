@@ -13,6 +13,9 @@ class MYFIRSTGAMEINUE5_API UMenuWidget : public UUserWidget
 public:
 	void SetMenuLogic(class AMenuLogic* NewMenuLogic) { MenuLogic = NewMenuLogic; }
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
+	FName Key = NAME_None;
+
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "UI")
 	class AMenuLogic* MenuLogic = nullptr;

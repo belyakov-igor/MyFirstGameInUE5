@@ -15,5 +15,5 @@ public:
 	FName LevelName = NAME_None;
 
 	UPROPERTY(VisibleAnywhere, Category = Basic)
-    FString SaveSlotName;
+	FString SaveSlotName;
 };

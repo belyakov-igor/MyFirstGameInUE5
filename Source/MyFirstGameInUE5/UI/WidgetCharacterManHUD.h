@@ -5,10 +5,10 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 
-#include "CharacterManHUDWidget.generated.h"
+#include "WidgetCharacterManHUD.generated.h"
 
 UCLASS()
-class MYFIRSTGAMEINUE5_API UCharacterManHUDWidget : public UUserWidget
+class MYFIRSTGAMEINUE5_API UWidgetCharacterManHUD : public UUserWidget
 {
 	GENERATED_BODY()
 
