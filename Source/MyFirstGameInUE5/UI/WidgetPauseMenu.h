@@ -11,7 +11,44 @@ class MYFIRSTGAMEINUE5_API UWidgetPauseMenu : public UMenuWidget
 {
 	GENERATED_BODY()
 
+public:
+	virtual bool Initialize() override;
+
 protected:
 	UPROPERTY(meta = (BindWidget))
-	class UButton* btn_continue = nullptr;
+	class UWidgetButtonWithText* btn_Continue = nullptr;
+
+	UPROPERTY(meta = (BindWidget))
+	class UWidgetButtonWithText* btn_SaveGame = nullptr;
+
+	UPROPERTY(meta = (BindWidget))
+	class UWidgetButtonWithText* btn_LoadGame = nullptr;
+
+	UPROPERTY(meta = (BindWidget))
+	class UWidgetButtonWithText* btn_Options = nullptr;
+
+	UPROPERTY(meta = (BindWidget))
+	class UWidgetButtonWithText* btn_MainMenu = nullptr;
+
+	UPROPERTY(meta = (BindWidget))
+	class UWidgetButtonWithText* btn_QuitGame = nullptr;
+
+private:
+	UFUNCTION()
+	void OnContinueClicked();
+
+	UFUNCTION()
+	void OnSaveClicked();
+
+	UFUNCTION()
+	void OnLoadClicked();
+
+	UFUNCTION()
+	void OnOptionsClicked();
+
+	UFUNCTION()
+	void OnMainMenuClicked();
+
+	UFUNCTION()
+	void OnQuitGameClicked();
 };

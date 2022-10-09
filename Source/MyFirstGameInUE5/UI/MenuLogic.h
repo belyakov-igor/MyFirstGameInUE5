@@ -1,7 +1,9 @@
 #pragma once
 
+#include "UI/MenuWidget.h"
+
 #include "CoreMinimal.h"
-#include "Blueprint/UserWidget.h"
+#include "GameFramework/Actor.h"
 
 #include "MenuLogic.generated.h"
 
@@ -19,8 +21,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void CloseUI();
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "UI")
+	bool IsUIOpen() const;
+
 	UFUNCTION(BlueprintCallable, Category = "UI")
-	void ShowNextWidget(FName WidgetKey);
+	void ShowNextWidget(TEnumAsByte<EMenuWidget> WidgetKey);
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void ShowPreviousWidget();
@@ -29,7 +34,7 @@ public:
 	TArray<TSubclassOf<class UMenuWidget>> WidgetClasses;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
-	FName StartupWidgetKey = NAME_None;
+	TEnumAsByte<EMenuWidget> StartupWidgetKey = EMenuWidget_Invalid;
 
 protected:
 	virtual void BeginPlay() override;
@@ -37,10 +42,10 @@ protected:
 
 private:
 	UPROPERTY()
-	TArray<class UMenuWidget*> Widgets;
-	TArray<class UMenuWidget*> WidgetStack;
+	TArray<UMenuWidget*> Widgets;
+	TArray<UMenuWidget*> WidgetStack;
 
 	void ShowWidget(TArray<class UMenuWidget*>::SizeType Index);
 	void HideWidget();
-	TArray<class UMenuWidget*>::SizeType FindWidget(FName Key);
+	TArray<UMenuWidget*>::SizeType FindWidget(EMenuWidget Key);
 };

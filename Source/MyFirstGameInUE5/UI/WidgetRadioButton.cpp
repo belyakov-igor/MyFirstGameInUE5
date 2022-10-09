@@ -1,5 +1,7 @@
 #include "UI/WidgetRadioButton.h"
 
+#include "UI/WidgetButtonWithText.h"
+
 #include "Components/HorizontalBox.h"
 #include "Components/HorizontalBoxSlot.h"
 
@@ -25,13 +27,16 @@ bool UWidgetRadioButton::Initialize()
 		Button->SetPadding(FMargin(10.f));
 		Buttons.Add(Button);
 
-		auto Signal = NewObject<USignalWithIndex>(this, USignalWithIndex::StaticClass());
+		auto Signal = NewObject<UIndexedSignalObject>(this, UIndexedSignalObject::StaticClass());
 		Signal->Index = IndexedSignals.Num();
 		auto Index = IndexedSignals.Add(Signal);
 
-		Button->OnButtonPressed.AddDynamic(IndexedSignals[Index], &USignalWithIndex::CallOnSignalReceived);
-		IndexedSignals[Index]->OnSignalRecieved.AddDynamic(this, &UWidgetRadioButton::SetActiveButton);
+		Button->OnButtonPressed.AddDynamic(IndexedSignals[Index], &UIndexedSignalObject::BroadcastIndexedSignal);
+		IndexedSignals[Index]->IndexedSignal.AddDynamic(this, &UWidgetRadioButton::SetActiveButton);
+	}
 
+	if (!Buttons.IsEmpty())
+	{
 		SetActiveButton(ActiveIndex);
 	}
 

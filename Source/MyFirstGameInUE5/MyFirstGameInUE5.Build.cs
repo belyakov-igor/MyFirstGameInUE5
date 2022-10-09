@@ -19,7 +19,7 @@ public class MyFirstGameInUE5 : ModuleRules
 			, "NavigationSystem"
 			, "AIModule"
 			, "SlateCore"
-		});
+        });
 
 		PrivateDependencyModuleNames.AddRange(new string[] {  });
 

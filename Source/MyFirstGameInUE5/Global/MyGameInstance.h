@@ -1,9 +1,15 @@
 #pragma once
 
+#include "Global/Settings.h"
+#include "Global/Utilities/MyUtilities.h"
+
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
-#include "Settings.h"
+#include "Kismet/GameplayStatics.h"
+
 #include "MyGameInstance.generated.h"
+
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FAsyncSaveGameToSlotMulticastDelegate, const FString& /*SlotName*/, const int32 /*UserIndex*/, bool /*succeeded*/);
 
 UCLASS()
 class MYFIRSTGAMEINUE5_API UMyGameInstance : public UGameInstance
@@ -65,15 +71,48 @@ public:
 	float GetGameSoundVolume();
 // } Game Sound ///////////////////////////////////////////////////////////////////////////////////
 
+// Game { /////////////////////////////////////////////////////////////////////////////////////////
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
 	FName StartLevelName = NAME_None;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
+	FName MainMenuLevelName = NAME_None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
+	FString QuickSaveSlotName;
+
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void StartNewGame();
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void QuitToMainMenu();
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	static TArray<FDateTimeAndString> GetAllSaveGameSlots();
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void SaveGame(const FString& Slot);
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void DeleteSave(const FString& Slot);
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void MakeQuickSave();
+
+	FSignalMulticastSignature OnSavingGameStarted;
+	FAsyncSaveGameToSlotMulticastDelegate OnSavingGameFinished;
+// } Game /////////////////////////////////////////////////////////////////////////////////////////
 
 private:
 	UPROPERTY()
 	UAudioComponent* MusicComponent = nullptr;
 
 	FTimerHandle MusicTimerHandle = {};
+
+	FString DecoratedSaveSlotName(FString SaveSlotName);
+	FString NonDecoratedSaveSlotName(FString SaveSlotName);
+	inline static constexpr const char SaveSlotNameDecoration[] = "Save_";
+	FAsyncSaveGameToSlotDelegate OnGameSavedNonMulticast;
+	void OnGameSavedNonMulticastTriggered(const FString& SlotName, const int32 UserIndex, bool succeeded);
+	inline static const FString SaveGameListSlot = "SaveGameListSlot";
 };

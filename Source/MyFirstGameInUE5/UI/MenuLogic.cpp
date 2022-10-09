@@ -5,6 +5,7 @@
 #include "Blueprint/UserWidget.h"
 #include "Blueprint/WidgetBlueprintLibrary.h"
 #include "Kismet/GameplayStatics.h"
+#include "GameFramework/GameModeBase.h"
 
 AMenuLogic::AMenuLogic()
 {
@@ -26,7 +27,7 @@ void AMenuLogic::BeginPlay()
 		checkf(
 			FindWidget(Widget->Key) == INDEX_NONE
 			, TEXT("There must be only one widget with key \"%s\" in WidgetClasses")
-			, *Widget->Key.ToString()
+			, *UEnum::GetValueAsString<EMenuWidget>(Widget->Key)
 		);
 
 		Widget->SetMenuLogic(this);
@@ -39,7 +40,7 @@ void AMenuLogic::BeginPlay()
 	checkf(
 		bStartupKeyFound
 		, TEXT("WidgetClasses doesn't contain widget with specified StartupWidgetKey = \"%s\"")
-		, *StartupWidgetKey.ToString()
+		, *UEnum::GetValueAsString<EMenuWidget>(StartupWidgetKey)
 	);
 }
 
@@ -50,7 +51,7 @@ void AMenuLogic::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	CloseUI();
 }
 
-TArray<class UMenuWidget*>::SizeType AMenuLogic::FindWidget(FName Key)
+TArray<class UMenuWidget*>::SizeType AMenuLogic::FindWidget(EMenuWidget Key)
 {
 	return Widgets.FindLastByPredicate([Key](const UMenuWidget* Widget) { return Widget->Key == Key; });
 }
@@ -61,6 +62,7 @@ void AMenuLogic::OpenUI()
 	{
 		PlayerController->SetShowMouseCursor(true);
 		PlayerController->SetInputMode(FInputModeUIOnly());
+		GetWorld()->GetAuthGameMode()->SetPause(PlayerController);
 	}
 	ShowNextWidget(StartupWidgetKey);
 }
@@ -73,14 +75,20 @@ void AMenuLogic::CloseUI()
 	{
 		PlayerController->SetShowMouseCursor(false);
 		PlayerController->SetInputMode(FInputModeGameOnly());
+		GetWorld()->GetAuthGameMode()->ClearPause();
 	}
 }
 
-void AMenuLogic::ShowNextWidget(FName WidgetKey)
+bool AMenuLogic::IsUIOpen() const
+{
+	return !WidgetStack.IsEmpty();
+}
+
+void AMenuLogic::ShowNextWidget(TEnumAsByte<EMenuWidget> WidgetKey)
 {
 	HideWidget();
 	auto Index = FindWidget(WidgetKey);
-	checkf(Index != INDEX_NONE, TEXT("Widget with key \"%s\" is not found"), *WidgetKey.ToString());
+	checkf(Index != INDEX_NONE, TEXT("Widget with key \"%s\" is not found"), *UEnum::GetValueAsString<EMenuWidget>(WidgetKey));
 	auto Widget = Widgets[Index];
 	WidgetStack.Add(Widget);
 	ShowWidget(Index);
@@ -105,6 +113,7 @@ void AMenuLogic::ShowWidget(TArray<class UMenuWidget*>::SizeType Index)
 {
 	check(Index < Widgets.Num() && Index >= 0);
 	auto Widget = Widgets[Index];
+	Widget->Refresh();
 	Widget->AddToViewport();
 }
 

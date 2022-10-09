@@ -1,11 +1,13 @@
 #include "MyGameInstance.h"
 
 #include "Settings.h"
+#include "Global/MySaveGame.h"
 
-#include "Kismet/GameplayStatics.h"
 #include "Components/AudioComponent.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Sound/SoundClass.h"
+
+DEFINE_LOG_CATEGORY_STATIC(LogMyGameInstance, All, All);
 
 void UMyGameInstance::UMyGameInstance::Init()
 {
@@ -15,6 +17,17 @@ void UMyGameInstance::UMyGameInstance::Init()
 	auto GameUserSettings = UGameUserSettings::GetGameUserSettings();
 	check(GameUserSettings != nullptr);
 	GameUserSettings->ApplySettings(false);
+
+	if (Cast<UMySaveGameList>(UGameplayStatics::LoadGameFromSlot(SaveGameListSlot, 0)) == nullptr)
+	{
+		UMySaveGameList* SaveGameList = Cast<UMySaveGameList>(UGameplayStatics::CreateSaveGameObject(UMySaveGameList::StaticClass()));
+		if (SaveGameList == nullptr || !UGameplayStatics::SaveGameToSlot(SaveGameList, SaveGameListSlot, 0))
+		{
+			UE_LOG(LogMyGameInstance, Error, TEXT("Failed to initialize SaveGameList."));
+		}
+	}
+
+	OnGameSavedNonMulticast.BindUObject(this, &UMyGameInstance::OnGameSavedNonMulticastTriggered);
 }
 
 void UMyGameInstance::SaveSettings()
@@ -128,7 +141,103 @@ float UMyGameInstance::GetGameSoundVolume()
 	return Settings->GameSoundVolume;
 }
 
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void UMyGameInstance::StartNewGame()
 {
 	UGameplayStatics::OpenLevel(GetWorld(), StartLevelName);
+}
+
+void UMyGameInstance::QuitToMainMenu()
+{
+	UGameplayStatics::OpenLevel(GetWorld(), MainMenuLevelName);
+}
+
+TArray<FDateTimeAndString> UMyGameInstance::GetAllSaveGameSlots()
+{
+	TArray<FDateTimeAndString> Ret;
+	if (
+		UMySaveGameList* SaveGameList = Cast<UMySaveGameList>(UGameplayStatics::LoadGameFromSlot(SaveGameListSlot, 0))
+		; SaveGameList != nullptr
+	)
+	{
+		Ret = SaveGameList->Slots;
+	}
+	return Ret;
+}
+
+void UMyGameInstance::SaveGame(const FString& Slot)
+{
+	UMySaveGame* SaveGame = Cast<UMySaveGame>(UGameplayStatics::CreateSaveGameObject(UMySaveGame::StaticClass()));
+	if (SaveGame == nullptr)
+	{
+		return;
+	}
+
+	auto RealSlot = DecoratedSaveSlotName(Slot);
+	SaveGame->LevelName = FName(UGameplayStatics::GetCurrentLevelName(GetWorld()));
+	OnSavingGameStarted.Broadcast();
+	UGameplayStatics::AsyncSaveGameToSlot(SaveGame, RealSlot, 0, OnGameSavedNonMulticast);
+}
+
+void UMyGameInstance::MakeQuickSave()
+{
+	SaveGame(QuickSaveSlotName);
+}
+
+void UMyGameInstance::DeleteSave(const FString& Slot)
+{
+	UGameplayStatics::DeleteGameInSlot(DecoratedSaveSlotName(Slot), 0);
+	UMySaveGameList* SaveGameList = Cast<UMySaveGameList>(UGameplayStatics::LoadGameFromSlot(SaveGameListSlot, 0));
+	if (SaveGameList == nullptr)
+	{
+		return;
+	}
+	auto Index =
+		SaveGameList->Slots.FindLastByPredicate(
+			[&Slot](const FDateTimeAndString& DateTimeAndString){ return DateTimeAndString.String == Slot; }
+		)
+	;
+	if (Index == INDEX_NONE)
+	{
+		return;
+	}
+	SaveGameList->Slots.RemoveAt(Index);
+	UGameplayStatics::SaveGameToSlot(SaveGameList, SaveGameListSlot, 0);
+}
+
+FString UMyGameInstance::DecoratedSaveSlotName(FString SaveSlotName)
+{
+	return FString(SaveSlotNameDecoration) + SaveSlotName;
+}
+
+FString UMyGameInstance::NonDecoratedSaveSlotName(FString DecoratedSaveSlotName)
+{
+	return DecoratedSaveSlotName.Mid(sizeof(SaveSlotNameDecoration) - 1);
+}
+
+void UMyGameInstance::OnGameSavedNonMulticastTriggered(const FString& RealSlotName, const int32 UserIndex, bool succeeded)
+{
+	auto Slot = NonDecoratedSaveSlotName(RealSlotName);
+	if (succeeded)
+	{
+		if (
+			UMySaveGameList* SaveGameList = Cast<UMySaveGameList>(UGameplayStatics::LoadGameFromSlot(SaveGameListSlot, 0))
+			; SaveGameList != nullptr
+		)
+		{
+			auto Index =
+				SaveGameList->Slots.FindLastByPredicate(
+					[&Slot](const FDateTimeAndString& DateTimeAndString) { return DateTimeAndString.String == Slot; }
+				)
+			;
+			if (Index != INDEX_NONE)
+			{
+				SaveGameList->Slots.RemoveAt(Index);
+			}
+			SaveGameList->Slots.Insert(FDateTimeAndString{FDateTime::UtcNow(), Slot}, 0);
+			UGameplayStatics::SaveGameToSlot(SaveGameList, SaveGameListSlot, UserIndex);
+		}
+	}
+	OnSavingGameFinished.Broadcast(Slot, UserIndex, succeeded);
 }
