@@ -3,7 +3,7 @@
 #include "UI/WidgetButtonWithText.h"
 #include "Global/MyGameInstance.h"
 #include "UI/MenuLogic.h"
-#include "UI/WidgetListViewTextEntry.h"
+#include "UI/WidgetSaveGameList.h"
 
 #include "Components/ListView.h"
 #include "Components/TextBlock.h"
@@ -14,11 +14,13 @@ bool UWidgetSaveGame::Initialize()
 {
 	auto Ret = Super::Initialize();
 
+	Key = EMenuWidget_Save;
+
 	btn_Back->OnButtonPressed.AddDynamic(this, &UWidgetSaveGame::Back);
 	btn_Save->OnButtonPressed.AddDynamic(this, &UWidgetSaveGame::SaveGameToSlotPickedInTheListView);
 	btn_NewSave->OnButtonPressed.AddDynamic(this, &UWidgetSaveGame::ShowEditableText);
 	btn_Delete->OnButtonPressed.AddDynamic(this, &UWidgetSaveGame::DeleteSaveForSlotPickedInTheListView);
-	editTxt_EditableText->OnTextCommitted.AddDynamic(this, &UWidgetSaveGame::OnTextCommited);
+	editTxt_EditableText->OnTextCommitted.AddDynamic(this, &UWidgetSaveGame::OnTextCommitted);
 	btn_EditableTextSave->OnButtonPressed.AddDynamic(this, &UWidgetSaveGame::SaveOnEditableTextCommited);
 	btn_EditableTextCancel->OnButtonPressed.AddDynamic(this, &UWidgetSaveGame::HideEditableText);
 
@@ -27,37 +29,17 @@ bool UWidgetSaveGame::Initialize()
 	return Ret;
 }
 
-void UWidgetSaveGame::Refresh()
+void UWidgetSaveGame::Refresh_Implementation()
 {
-	list_GameSaves->ClearListItems();
+	Super::Refresh_Implementation();
 
-	auto SaveGameSlots = UMyGameInstance::GetAllSaveGameSlots();
-
-	if (SaveGameSlots.IsEmpty())
+	if (wsglist_GameSaves == nullptr)
 	{
-		btn_Save->SetIsEnabled(false);
-		btn_Delete->SetIsEnabled(false);
-		txt_NoSavedGames->SetVisibility(ESlateVisibility::Visible);
+		return;
 	}
-	else
-	{
-		btn_Save->SetIsEnabled(true);
-		btn_Delete->SetIsEnabled(true);
-		txt_NoSavedGames->SetVisibility(ESlateVisibility::Hidden);
-	}
-
-	for (const auto& SaveGameSlot : SaveGameSlots)
-	{
-		auto Data = NewObject<UWidgetListViewTextEntryData>(
-			this
-			, UWidgetListViewTextEntryData::StaticClass()
-			, FName(SaveGameSlot.String)
-		);
-		Data->DateTime = SaveGameSlot.DateTime;
-		Data->String = SaveGameSlot.String;
-		list_GameSaves->AddItem(Data);
-	}
-	list_GameSaves->RegenerateAllEntries();
+	wsglist_GameSaves->Refresh();
+	btn_Save->SetIsEnabled(!wsglist_GameSaves->ListIsEmpty());
+	btn_Delete->SetIsEnabled(!wsglist_GameSaves->ListIsEmpty());
 }
 
 void UWidgetSaveGame::Back()
@@ -91,14 +73,14 @@ void UWidgetSaveGame::DeleteSaveForSlotPickedInTheListView()
 
 UWidgetListViewTextEntryData* UWidgetSaveGame::GetPickedItemData() const
 {
-	if (list_GameSaves == nullptr)
+	if (wsglist_GameSaves == nullptr)
 	{
 		return nullptr;
 	}
-	return Cast<UWidgetListViewTextEntryData>(list_GameSaves->GetSelectedItem());
+	return wsglist_GameSaves->GetSelectedEntryData();
 }
 
-void UWidgetSaveGame::OnTextCommited(const FText& Text, ETextCommit::Type CommitMethod)
+void UWidgetSaveGame::OnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod)
 {
 	if (CommitMethod == ETextCommit::Type::OnEnter && !Text.IsEmpty())
 	{
@@ -115,29 +97,4 @@ void UWidgetSaveGame::SaveOnEditableTextCommited()
 		HideEditableText();
 		SaveGameToSlot(SaveSlot);
 	}
-}
-
-void UWidgetSaveGame::OnListViewSelectionChanged()
-{
-	for (auto Item : list_GameSaves->GetListItems())
-	{
-		auto Data = Cast<UWidgetListViewTextEntryData>(Item);
-		if (Data == nullptr)
-		{
-			continue;
-		}
-		auto SlateVisibility = list_GameSaves->IsItemSelected(Item) ? ESlateVisibility::Visible : ESlateVisibility::Hidden;
-		Data->EntryWidget->img_Selected->SetVisibility(SlateVisibility);
-	}
-}
-
-void UWidgetSaveGame::OnListViewItemHovered(const UObject* Item, bool IsHovered)
-{
-	auto Data = Cast<UWidgetListViewTextEntryData>(Item);
-	if (Data == nullptr)
-	{
-		return;
-	}
-	auto SlateVisibility = IsHovered ? ESlateVisibility::Visible : ESlateVisibility::Hidden;
-	Data->EntryWidget->img_Hovered->SetVisibility(SlateVisibility);
 }

@@ -27,7 +27,8 @@ class MYFIRSTGAMEINUE5_API UMenuWidget : public UUserWidget
 public:
 	void SetMenuLogic(class AMenuLogic* NewMenuLogic) { MenuLogic = NewMenuLogic; }
 
-	virtual void Refresh() {}
+	UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "UI")
+	void Refresh();
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "UI")
 	TEnumAsByte<EMenuWidget> Key = EMenuWidget_Invalid;
@@ -35,4 +36,6 @@ public:
 protected:
 	UPROPERTY(BlueprintReadOnly, Category = "UI")
 	class AMenuLogic* MenuLogic = nullptr;
+
+	virtual void Refresh_Implementation() {}
 };

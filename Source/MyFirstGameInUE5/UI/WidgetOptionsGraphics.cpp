@@ -11,6 +11,8 @@ bool UWidgetOptionsGraphics::Initialize()
 {
 	auto Ret = Super::Initialize();
 
+	Key = EMenuWidget_OptionsGraphics;
+
 	btn_Back   ->OnButtonPressed.AddDynamic(this, &UWidgetOptionsGraphics::Back);
 	btn_Optimal->OnButtonPressed.AddDynamic(this, &UWidgetOptionsGraphics::SetOptimalSettings);
 

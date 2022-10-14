@@ -8,10 +8,6 @@
 void UWidgetLoadingOverlay::PlayFadeInAnimation()
 {
 	PlayAnimation(FadeInAnimation);
-	if (auto GameInstance = Cast<UMyGameInstance>(UGameplayStatics::GetGameInstance(this)); GameInstance != nullptr)
-	{
-		GameInstance->StopMusic();
-	}
 	UGameplayStatics::PlaySound2D(GetWorld(), FadeInSound);
 }
 
@@ -21,4 +17,13 @@ void UWidgetLoadingOverlay::OnAnimationFinished_Implementation(const UWidgetAnim
 	{
 		FadeInAnimationFinished.Broadcast();
 	}
+	else if (Animation == FadeOutAnimation)
+	{
+		FadeOutAnimationFinished.Broadcast();
+	}
+}
+
+void UWidgetLoadingOverlay::PlayFadeOutAnimation()
+{
+	PlayAnimation(FadeOutAnimation);
 }

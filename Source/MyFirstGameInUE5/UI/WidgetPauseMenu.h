@@ -33,6 +33,8 @@ protected:
 	UPROPERTY(meta = (BindWidget))
 	class UWidgetButtonWithText* btn_QuitGame = nullptr;
 
+	virtual void Refresh_Implementation() override;
+
 private:
 	UFUNCTION()
 	void OnContinueClicked();

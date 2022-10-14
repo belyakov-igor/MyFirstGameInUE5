@@ -9,6 +9,8 @@ bool UWidgetPauseMenu::Initialize()
 {
 	auto Ret = Super::Initialize();
 
+	Key = EMenuWidget_PauseMenu;
+
 	btn_Continue->OnButtonPressed.AddDynamic(this, &UWidgetPauseMenu::OnContinueClicked);
 	btn_SaveGame->OnButtonPressed.AddDynamic(this, &UWidgetPauseMenu::OnSaveClicked);
 	btn_LoadGame->OnButtonPressed.AddDynamic(this, &UWidgetPauseMenu::OnLoadClicked);
@@ -17,6 +19,13 @@ bool UWidgetPauseMenu::Initialize()
 	btn_QuitGame->OnButtonPressed.AddDynamic(this, &UWidgetPauseMenu::OnQuitGameClicked);
 
 	return Ret;
+}
+
+void UWidgetPauseMenu::Refresh_Implementation()
+{
+	Super::Refresh_Implementation();
+
+	btn_LoadGame->SetIsEnabled(!UMyGameInstance::GetAllSaveGameSlots().IsEmpty());
 }
 
 void UWidgetPauseMenu::OnContinueClicked()

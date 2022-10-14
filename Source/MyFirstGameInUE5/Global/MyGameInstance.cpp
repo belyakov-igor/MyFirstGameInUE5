@@ -2,6 +2,7 @@
 
 #include "Settings.h"
 #include "Global/MySaveGame.h"
+#include "UI/WidgetLoadingOverlay.h"
 
 #include "Components/AudioComponent.h"
 #include "GameFramework/GameUserSettings.h"
@@ -27,7 +28,12 @@ void UMyGameInstance::UMyGameInstance::Init()
 		}
 	}
 
-	OnGameSavedNonMulticast.BindUObject(this, &UMyGameInstance::OnGameSavedNonMulticastTriggered);
+	if (LoadingOverlayWidgetClass != nullptr)
+	{
+		LoadingOverlayWidget = CreateWidget<UWidgetLoadingOverlay>(this, LoadingOverlayWidgetClass, "LoadingOverlay");
+		LoadingOverlayWidget->FadeInAnimationFinished.AddDynamic(this, &UMyGameInstance::LoadGameImpl);
+		LoadingOverlayWidget->FadeOutAnimationFinished.AddDynamic(this, &UMyGameInstance::OnLoadingOverlayFadeOutAnimationFinished);
+	}
 }
 
 void UMyGameInstance::SaveSettings()
@@ -145,7 +151,10 @@ float UMyGameInstance::GetGameSoundVolume()
 
 void UMyGameInstance::StartNewGame()
 {
-	UGameplayStatics::OpenLevel(GetWorld(), StartLevelName);
+	StopMusic();
+	LoadGameImplNewGame = true;
+	LoadingOverlayWidget->AddToViewport();
+	LoadingOverlayWidget->PlayFadeInAnimation();
 }
 
 void UMyGameInstance::QuitToMainMenu()
@@ -177,12 +186,46 @@ void UMyGameInstance::SaveGame(const FString& Slot)
 	auto RealSlot = DecoratedSaveSlotName(Slot);
 	SaveGame->LevelName = FName(UGameplayStatics::GetCurrentLevelName(GetWorld()));
 	OnSavingGameStarted.Broadcast();
+	FAsyncSaveGameToSlotDelegate OnGameSavedNonMulticast;
+	OnGameSavedNonMulticast.BindUObject(this, &UMyGameInstance::OnGameSavedNonMulticastTriggered);
 	UGameplayStatics::AsyncSaveGameToSlot(SaveGame, RealSlot, 0, OnGameSavedNonMulticast);
 }
 
 void UMyGameInstance::MakeQuickSave()
 {
 	SaveGame(QuickSaveSlotName);
+}
+
+void UMyGameInstance::MakeQuickLoad()
+{
+	LoadGame(QuickSaveSlotName);
+}
+
+void UMyGameInstance::LoadLastSave()
+{
+	auto Saves = GetAllSaveGameSlots();
+	if (Saves.IsEmpty())
+	{
+		return;
+	}
+
+	FDateTime MaxDateTime = FDateTime::FromUnixTimestamp(0);
+	FString LatestSlot;
+	bool bFound = false;
+	for (auto& [DateTime, Slot] : Saves)
+	{
+		if (DateTime > MaxDateTime)
+		{
+			MaxDateTime = DateTime;
+			LatestSlot = Slot;
+			bFound = true;
+		}
+	}
+
+	if (bFound)
+	{
+		LoadGame(LatestSlot);
+	}
 }
 
 void UMyGameInstance::DeleteSave(const FString& Slot)
@@ -204,6 +247,63 @@ void UMyGameInstance::DeleteSave(const FString& Slot)
 	}
 	SaveGameList->Slots.RemoveAt(Index);
 	UGameplayStatics::SaveGameToSlot(SaveGameList, SaveGameListSlot, 0);
+}
+
+void UMyGameInstance::LoadGame(const FString& Slot)
+{
+	if (LoadingOverlayWidget == nullptr)
+	{
+		return;
+	}
+	check(LoadGameImplSlot.IsEmpty());
+	StopMusic();
+	LoadGameImplSlot = Slot;
+	LoadGameImplNewGame = false;
+	LoadingOverlayWidget->AddToViewport();
+	LoadingOverlayWidget->PlayFadeInAnimation();
+}
+
+void UMyGameInstance::LoadGameImpl()
+{
+	if (LoadGameImplNewGame)
+	{
+		UGameplayStatics::OpenLevel(GetWorld(), StartLevelName);
+		LoadingOverlayWidget->PlayFadeOutAnimation();
+	}
+	else
+	{
+		check(!LoadGameImplSlot.IsEmpty());
+		auto RealSlot = DecoratedSaveSlotName(LoadGameImplSlot);
+		LoadGameImplSlot.Empty();
+		OnLoadingGameStarted.Broadcast();
+		FAsyncLoadGameFromSlotDelegate OnGameLoadedNonMulticast;
+		OnGameLoadedNonMulticast.BindUObject(this, &UMyGameInstance::OnGameLoadedNonMulticastTriggered);
+		UGameplayStatics::AsyncLoadGameFromSlot(RealSlot, 0, OnGameLoadedNonMulticast);
+	}
+}
+
+void UMyGameInstance::OnLevelLoaded()
+{
+	if (CurrentSave == nullptr)
+	{
+		return;
+	}
+
+	if (LoadingOverlayWidget != nullptr)
+	{
+		LoadingOverlayWidget->AddToViewport();
+		LoadingOverlayWidget->PlayFadeOutAnimation();
+	}
+
+	OnLoadingGameFinished.Broadcast();
+}
+
+void UMyGameInstance::OnLoadingOverlayFadeOutAnimationFinished()
+{
+	if (LoadingOverlayWidget != nullptr)
+	{
+		LoadingOverlayWidget->RemoveFromViewport();
+	}
 }
 
 FString UMyGameInstance::DecoratedSaveSlotName(FString SaveSlotName)
@@ -240,4 +340,16 @@ void UMyGameInstance::OnGameSavedNonMulticastTriggered(const FString& RealSlotNa
 		}
 	}
 	OnSavingGameFinished.Broadcast(Slot, UserIndex, succeeded);
+}
+
+void UMyGameInstance::OnGameLoadedNonMulticastTriggered(const FString& RealSlotName, const int32 UserIndex, USaveGame* SaveGame)
+{
+	auto Slot = NonDecoratedSaveSlotName(RealSlotName);
+	auto MySaveGame = Cast<UMySaveGame>(SaveGame);
+	if (MySaveGame == nullptr)
+	{
+		return;
+	}
+	CurrentSave = MySaveGame;
+	UGameplayStatics::OpenLevel(GetWorld(), MySaveGame->LevelName);
 }

@@ -28,6 +28,7 @@ protected:
 
 	void SwitchPause();
 	void QuickSave();
+	void QuickLoad();
 
 private:
 	void OnSavingGameStarted();

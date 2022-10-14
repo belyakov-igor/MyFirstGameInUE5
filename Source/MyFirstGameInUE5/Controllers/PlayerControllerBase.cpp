@@ -40,9 +40,11 @@ void APlayerControllerBase::SetupInputComponent()
 #if WITH_EDITOR
     InputComponent->BindAction("P_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::SwitchPause);
     InputComponent->BindAction("O_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::QuickSave);
+    InputComponent->BindAction("L_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::QuickLoad);
 #else
     InputComponent->BindAction("Esc_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::SwitchPause);
     InputComponent->BindAction("F5_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::QuickSave);
+    InputComponent->BindAction("F9_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::QuickLoad);
 #endif
 }
 
@@ -54,6 +56,11 @@ void APlayerControllerBase::SwitchPause()
 void APlayerControllerBase::QuickSave()
 {
     UMyGameInstance::GetMyGameInstance(this)->MakeQuickSave();
+}
+
+void APlayerControllerBase::QuickLoad()
+{
+    UMyGameInstance::GetMyGameInstance(this)->MakeQuickLoad();
 }
 
 void APlayerControllerBase::OnSavingGameStarted()

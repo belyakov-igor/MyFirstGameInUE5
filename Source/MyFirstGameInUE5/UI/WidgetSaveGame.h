@@ -15,8 +15,6 @@ class MYFIRSTGAMEINUE5_API UWidgetSaveGame : public UMenuWidget
 public:
 	virtual bool Initialize() override;
 
-	virtual void Refresh() override;
-
 protected:
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	class UWidgetButtonWithText* btn_Back = nullptr;
@@ -31,10 +29,7 @@ protected:
 	class UWidgetButtonWithText* btn_Delete = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	class UListView* list_GameSaves = nullptr;
-
-	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
-	class UTextBlock* txt_NoSavedGames = nullptr;
+	class UWidgetSaveGameList* wsglist_GameSaves = nullptr;
 
 	UPROPERTY(BlueprintReadOnly, meta = (BindWidget))
 	class UEditableText* editTxt_EditableText = nullptr;
@@ -55,11 +50,7 @@ protected:
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void SaveGameToSlot(FString SlotName);
 
-	UFUNCTION(BlueprintCallable, Category = "UI")
-	void OnListViewSelectionChanged();
-
-	UFUNCTION(BlueprintCallable, Category = "UI")
-	void OnListViewItemHovered(const UObject* Item, bool IsHovered);
+	virtual void Refresh_Implementation() override;
 
 private:
 	UFUNCTION()
@@ -72,7 +63,7 @@ private:
 	void DeleteSaveForSlotPickedInTheListView();
 
 	UFUNCTION()
-	void OnTextCommited(const FText& Text, ETextCommit::Type CommitMethod);
+	void OnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
 
 	UFUNCTION()
 	void SaveOnEditableTextCommited();

@@ -12,4 +12,6 @@ class MYFIRSTGAMEINUE5_API AMyGameModeBase : public AGameModeBase
 
 public:
 	explicit AMyGameModeBase();
+
+	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 };

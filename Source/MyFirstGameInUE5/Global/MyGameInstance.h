@@ -10,6 +10,7 @@
 #include "MyGameInstance.generated.h"
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FAsyncSaveGameToSlotMulticastDelegate, const FString& /*SlotName*/, const int32 /*UserIndex*/, bool /*succeeded*/);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FAsyncLoadGameFromSlotMulticastDelegate, const FString& /*SlotName*/, const int32 /*UserIndex*/, USaveGame*);
 
 UCLASS()
 class MYFIRSTGAMEINUE5_API UMyGameInstance : public UGameInstance
@@ -28,7 +29,7 @@ public:
 	void LoadSettings();
 
 	UPROPERTY()
-	USettings* Settings;
+	USettings* Settings = nullptr;
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "MyGameInstance", meta = (WorldContext = "WorldContextObject"))
 	static UMyGameInstance* GetMyGameInstance(const UObject* WorldContextObject);
@@ -81,13 +82,16 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
 	FString QuickSaveSlotName;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
+	TSubclassOf<class UWidgetLoadingOverlay> LoadingOverlayWidgetClass;
+
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void StartNewGame();
 
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void QuitToMainMenu();
 
-	UFUNCTION(BlueprintCallable, Category = "Game")
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Game")
 	static TArray<FDateTimeAndString> GetAllSaveGameSlots();
 
 	UFUNCTION(BlueprintCallable, Category = "Game")
@@ -99,8 +103,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void MakeQuickSave();
 
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void LoadGame(const FString& Slot);
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void MakeQuickLoad();
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void LoadLastSave();
+
+	void OnLevelLoaded();
+
 	FSignalMulticastSignature OnSavingGameStarted;
 	FAsyncSaveGameToSlotMulticastDelegate OnSavingGameFinished;
+	FSignalMulticastSignature OnLoadingGameStarted;
+	FSignalMulticastSignature OnLoadingGameFinished;
 // } Game /////////////////////////////////////////////////////////////////////////////////////////
 
 private:
@@ -112,7 +129,16 @@ private:
 	FString DecoratedSaveSlotName(FString SaveSlotName);
 	FString NonDecoratedSaveSlotName(FString SaveSlotName);
 	inline static constexpr const char SaveSlotNameDecoration[] = "Save_";
-	FAsyncSaveGameToSlotDelegate OnGameSavedNonMulticast;
 	void OnGameSavedNonMulticastTriggered(const FString& SlotName, const int32 UserIndex, bool succeeded);
+	void OnGameLoadedNonMulticastTriggered(const FString& SlotName, const int32 UserIndex, USaveGame* SaveGame);
 	inline static const FString SaveGameListSlot = "SaveGameListSlot";
+
+	class UMySaveGame* CurrentSave = nullptr;
+	FString LoadGameImplSlot;
+	bool LoadGameImplNewGame = false;
+	UFUNCTION() void LoadGameImpl();
+	UFUNCTION() void OnLoadingOverlayFadeOutAnimationFinished();
+
+	UPROPERTY()
+	UWidgetLoadingOverlay* LoadingOverlayWidget = nullptr;
 };
