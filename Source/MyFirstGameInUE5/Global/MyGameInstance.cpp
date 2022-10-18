@@ -2,7 +2,9 @@
 
 #include "Settings.h"
 #include "Global/MySaveGame.h"
+#include "Global/MyGameModeBase.h"
 #include "UI/WidgetLoadingOverlay.h"
+#include "Characters/PlayerCharacter.h"
 
 #include "Components/AudioComponent.h"
 #include "GameFramework/GameUserSettings.h"
@@ -151,6 +153,12 @@ float UMyGameInstance::GetGameSoundVolume()
 
 void UMyGameInstance::StartNewGame()
 {
+	CurrentSave = InitNewGameSaveObject();
+	if (CurrentSave == nullptr)
+	{
+		check(false);
+		return;
+	}
 	StopMusic();
 	LoadGameImplNewGame = true;
 	LoadingOverlayWidget->AddToViewport();
@@ -159,6 +167,7 @@ void UMyGameInstance::StartNewGame()
 
 void UMyGameInstance::QuitToMainMenu()
 {
+	CurrentSave = nullptr;
 	UGameplayStatics::OpenLevel(GetWorld(), MainMenuLevelName);
 }
 
@@ -177,18 +186,19 @@ TArray<FDateTimeAndString> UMyGameInstance::GetAllSaveGameSlots()
 
 void UMyGameInstance::SaveGame(const FString& Slot)
 {
-	UMySaveGame* SaveGame = Cast<UMySaveGame>(UGameplayStatics::CreateSaveGameObject(UMySaveGame::StaticClass()));
-	if (SaveGame == nullptr)
+	if (CurrentSave == nullptr)
 	{
+		check(false);
 		return;
 	}
 
+	CurrentSave->Update(GetWorld());
+
 	auto RealSlot = DecoratedSaveSlotName(Slot);
-	SaveGame->LevelName = FName(UGameplayStatics::GetCurrentLevelName(GetWorld()));
 	OnSavingGameStarted.Broadcast();
 	FAsyncSaveGameToSlotDelegate OnGameSavedNonMulticast;
 	OnGameSavedNonMulticast.BindUObject(this, &UMyGameInstance::OnGameSavedNonMulticastTriggered);
-	UGameplayStatics::AsyncSaveGameToSlot(SaveGame, RealSlot, 0, OnGameSavedNonMulticast);
+	UGameplayStatics::AsyncSaveGameToSlot(CurrentSave, RealSlot, 0, OnGameSavedNonMulticast);
 }
 
 void UMyGameInstance::MakeQuickSave()
@@ -251,6 +261,12 @@ void UMyGameInstance::DeleteSave(const FString& Slot)
 
 void UMyGameInstance::LoadGame(const FString& Slot)
 {
+	/* Loading process:
+	*  - UMyGameInstance::LoadGame (we're here)
+	*  - LoadingOverlayWidget->FadeInAnimationFinished => UMyGameInstance::LoadGameImpl (start actual loading)
+	*  - AsyncLoadGameFromSlot finished => UMyGameInstance::OnGameLoadedNonMulticastTriggered (start loading level)
+	*  - level is loaded => AMyGameModeBase::InitGame => UMyGameInstance::OnLevelLoaded
+	*/
 	if (LoadingOverlayWidget == nullptr)
 	{
 		return;
@@ -259,7 +275,11 @@ void UMyGameInstance::LoadGame(const FString& Slot)
 	StopMusic();
 	LoadGameImplSlot = Slot;
 	LoadGameImplNewGame = false;
-	LoadingOverlayWidget->AddToViewport();
+	if (LoadingOverlayWidget->GetParent() == nullptr)
+	{
+		LoadingOverlayWidget->AddToViewport();
+	}
+	LoadingOverlayWidget->StopAllAnimations();
 	LoadingOverlayWidget->PlayFadeInAnimation();
 }
 
@@ -268,6 +288,7 @@ void UMyGameInstance::LoadGameImpl()
 	if (LoadGameImplNewGame)
 	{
 		UGameplayStatics::OpenLevel(GetWorld(), StartLevelName);
+		LoadingOverlayWidget->StopAllAnimations();
 		LoadingOverlayWidget->PlayFadeOutAnimation();
 	}
 	else
@@ -286,12 +307,19 @@ void UMyGameInstance::OnLevelLoaded()
 {
 	if (CurrentSave == nullptr)
 	{
+		// obviously it's a PIE session started in some level other than Main Menu
+		CurrentSave = InitNewGameSaveObject();
+		check(CurrentSave != nullptr);
+		CurrentSave->Apply(GetWorld());
 		return;
 	}
+
+	CurrentSave->Apply(GetWorld());
 
 	if (LoadingOverlayWidget != nullptr)
 	{
 		LoadingOverlayWidget->AddToViewport();
+		LoadingOverlayWidget->StopAllAnimations();
 		LoadingOverlayWidget->PlayFadeOutAnimation();
 	}
 
@@ -348,8 +376,44 @@ void UMyGameInstance::OnGameLoadedNonMulticastTriggered(const FString& RealSlotN
 	auto MySaveGame = Cast<UMySaveGame>(SaveGame);
 	if (MySaveGame == nullptr)
 	{
+		check(false);
 		return;
 	}
 	CurrentSave = MySaveGame;
-	UGameplayStatics::OpenLevel(GetWorld(), MySaveGame->LevelName);
+	UGameplayStatics::OpenLevel(GetWorld(), MySaveGame->CurrentLevelName);
+}
+
+class UMySaveGame* UMyGameInstance::InitNewGameSaveObject()
+{
+	UMySaveGame* SaveGame = Cast<UMySaveGame>(UGameplayStatics::CreateSaveGameObject(UMySaveGame::StaticClass()));
+
+	SaveGame->CurrentLevelName = StartLevelName;
+
+	FGlobalActorSaveData GlobalActorSaveData;
+	GlobalActorSaveData.Class = PlayerCharacterClass;
+	SaveGame->GlobalActorSaveDatas.Add(FName("PlayerCharacter"), std::move(GlobalActorSaveData));
+
+	return SaveGame;
+}
+
+void UMyGameInstance::RemoveTransformFromSaveGameForGlobalActor(FName GlobalActorName, FName LevelName)
+{
+	if (CurrentSave == nullptr)
+	{
+		check(false);
+		return;
+	}
+
+	auto GlobalActorSaveData = CurrentSave->GlobalActorSaveDatas.Find(GlobalActorName);
+	if (GlobalActorSaveData == nullptr)
+	{
+		check(false);
+		return;
+	}
+
+	auto Transform = GlobalActorSaveData->Transforms.Find(LevelName);
+	if (Transform != nullptr)
+	{
+		GlobalActorSaveData->Transforms.Remove(LevelName);
+	}
 }

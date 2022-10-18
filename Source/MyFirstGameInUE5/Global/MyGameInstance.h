@@ -85,6 +85,9 @@ public:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
 	TSubclassOf<class UWidgetLoadingOverlay> LoadingOverlayWidgetClass;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
+	TSubclassOf<class APlayerCharacter> PlayerCharacterClass;
+
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void StartNewGame();
 
@@ -112,6 +115,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void LoadLastSave();
 
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void RemoveTransformFromSaveGameForGlobalActor(FName GlobalActorName, FName LevelName);
+
+	// called from AMyGameModeBase::InitGame
 	void OnLevelLoaded();
 
 	FSignalMulticastSignature OnSavingGameStarted;
@@ -133,7 +140,9 @@ private:
 	void OnGameLoadedNonMulticastTriggered(const FString& SlotName, const int32 UserIndex, USaveGame* SaveGame);
 	inline static const FString SaveGameListSlot = "SaveGameListSlot";
 
+	UPROPERTY()
 	class UMySaveGame* CurrentSave = nullptr;
+
 	FString LoadGameImplSlot;
 	bool LoadGameImplNewGame = false;
 	UFUNCTION() void LoadGameImpl();
@@ -141,4 +150,6 @@ private:
 
 	UPROPERTY()
 	UWidgetLoadingOverlay* LoadingOverlayWidget = nullptr;
+
+	class UMySaveGame* InitNewGameSaveObject();
 };

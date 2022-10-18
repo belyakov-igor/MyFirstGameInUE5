@@ -1,6 +1,9 @@
 # Visual Studio 2015 user specific files
 .vs/
 
+# IntelliSense precompiled headers
+*.ipch
+
 # Packaged games
 Windows/
 

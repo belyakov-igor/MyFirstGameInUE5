@@ -11,6 +11,8 @@
 #include "Camera/CameraComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "Kismet/GameplayStatics.h"
+#include "GameFramework/PlayerStart.h"
 
 DEFINE_LOG_CATEGORY_STATIC(PlayerCharacter, All, All);
 
@@ -26,6 +28,9 @@ APlayerCharacter::APlayerCharacter()
 	CameraComponent->SetupAttachment(SpringArmComponent);
 
 	bUseControllerRotationYaw = false;
+
+	AutoPossessPlayer = EAutoReceiveInput::Player0;
+	AutoPossessAI = EAutoPossessAI::Disabled;
 }
 
 void APlayerCharacter::BeginPlay()
@@ -317,4 +322,36 @@ void APlayerCharacter::OnHealthChanged(FName BoneName, float Damage)
 		return;
 	}
 	PlayerController->PlayerCameraManager->StartCameraShake(CameraShake);
+}
+
+FTransform APlayerCharacter::GetDefaultTansform() const
+{
+	TArray<AActor*> Actors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), Actors);
+	auto Default = [&Actors]{ return Actors.IsEmpty() ? FTransform{} : Actors[0]->GetActorTransform(); };
+
+	auto DesiredPlayerStartName = DesiredPlayerStartNames.Find(FName(UGameplayStatics::GetCurrentLevelName(GetWorld())));
+	if (DesiredPlayerStartName == nullptr)
+	{
+		return Default();
+	}
+
+	AActor** ActorPtr = Actors.FindByPredicate([DesiredPlayerStartName](const AActor* Actor){ return Actor->GetFName() == *DesiredPlayerStartName; });
+	if (ActorPtr == nullptr)
+	{
+		return Default();
+	}
+	else
+	{
+		APlayerStart* PlayerStart = Cast<APlayerStart>(*ActorPtr);
+		if (PlayerStart == nullptr)
+		{
+			check(false);
+			return Default();
+		}
+		else
+		{
+			return PlayerStart->GetActorTransform();
+		}
+	}
 }

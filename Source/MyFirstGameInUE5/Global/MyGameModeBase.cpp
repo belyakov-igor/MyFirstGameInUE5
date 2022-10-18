@@ -6,7 +6,6 @@
 
 AMyGameModeBase::AMyGameModeBase()
 {
-	DefaultPawnClass = APlayerCharacter::StaticClass();
 	PlayerStateClass = AMyPlayerState::StaticClass();
 }
 

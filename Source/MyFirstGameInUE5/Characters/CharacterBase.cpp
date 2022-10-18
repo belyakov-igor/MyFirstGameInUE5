@@ -68,6 +68,7 @@ void ACharacterBase::BeginPlay()
 
 	UprightToCrouchUpdater.TransitionTime = UprightToCrouchTransitionTime;
 	UprightToCrouchUpdater.Callback = [this](float Coef){ UprightToCrouchTransitionCallback(Coef); };
+	AimRotationCurrent = GetCapsuleComponent()->GetComponentRotation();
 	UprightToCrouchUpdater.Callback(0.f);
 
 

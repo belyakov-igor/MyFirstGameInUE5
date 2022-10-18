@@ -1,13 +1,14 @@
 #pragma once
 
 #include "Characters/CharacterBase.h"
+#include "Global/MySaveGame.h"
 
 #include "CoreMinimal.h"
 
 #include "PlayerCharacter.generated.h"
 
 UCLASS()
-class MYFIRSTGAMEINUE5_API APlayerCharacter : public ACharacterBase
+class MYFIRSTGAMEINUE5_API APlayerCharacter : public ACharacterBase, public ISavable
 {
 	GENERATED_BODY()
 
@@ -48,6 +49,13 @@ public:
 	TSubclassOf<class UCameraShakeBase> CameraShake = nullptr;
 
 	virtual void OnWeaponAndAmmoChanged() override;
+
+	virtual bool IsGlobal() const override { return true; }
+	virtual FTransform GetDefaultTansform() const override;
+
+	// Properties for game saving
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Save")
+	TMap<FName /*Level name*/, FName> DesiredPlayerStartNames;
 
 private:
 
