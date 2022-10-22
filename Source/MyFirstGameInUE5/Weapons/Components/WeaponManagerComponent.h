@@ -39,7 +39,7 @@ public:
 	void SetPreviousWeapon();
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	int32 GetCurrentWeaponIndex() const;
+	int32 GetCurrentWeaponSlot() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	ABaseWeapon* GetCurrentWeapon() const;
@@ -61,12 +61,13 @@ public:
 	FSignalSignature OnAttackFinished;
 	FSignalSignature OnWeaponAndAmmoChanged;
 
+	TArray<uint8> GetSerializedData() const;
+	void ApplySerializedData(const TArray<uint8>& Data);
+
 protected:
 	virtual void BeginPlay() override;
 
 private:
-	void SpawnAndAddDefaultWeapons();
-
 	int32 CurrentWeaponSlot = 1;
 	bool bWeaponIsVisible = false;
 };

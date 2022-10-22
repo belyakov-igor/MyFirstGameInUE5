@@ -18,9 +18,6 @@ void UAmmoComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-	ClipAmmo = ClipCapacity;
-	ArsenalAmmo = ArsenalCapacity;
-
 	auto ReloadFinishedNotify = UMyUtilities::FindNotifyByClass<UReloadFinishedAnimNotify>(ReloadAnimMontage);
 	ReloadFinishedNotify->OnNotified.AddUObject(this, &UAmmoComponent::OnReloadAnimFinished);
 }

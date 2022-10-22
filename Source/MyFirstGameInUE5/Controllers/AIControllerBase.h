@@ -2,13 +2,78 @@
 
 #include "CoreMinimal.h"
 #include "AIController.h"
+#include "Global/MySaveGame.h"
 
 #include "BehaviorTree/BehaviorTreeTypes.h"
 
 #include "AIControllerBase.generated.h"
 
+USTRUCT()
+struct FMoveTargetData
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(SaveGame)
+	FVector Position;
+
+	UPROPERTY(SaveGame)
+	FRotator Rotation;
+
+	UPROPERTY(SaveGame)
+	float TimeToStayInPosition;
+};
+
+USTRUCT()
+struct FMoveTargetSequenceTaskData
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY(SaveGame)
+	TArray<FMoveTargetData> OrderMoveTagetSequence;
+
+	UPROPERTY(SaveGame)
+	int32 FirstNonMandatoryOrderMoveTarget = 0;
+
+	UPROPERTY(SaveGame)
+	bool bLoopTargetSequence = false;
+
+	UPROPERTY(SaveGame)
+	uint16 CurrentMoveTargetIndex = 0;
+
+	UPROPERTY(SaveGame)
+	bool bCurrentLoopIsFirst = true;
+};
+
+USTRUCT()
+struct FSavedBlackboardKeys
+{
+	GENERATED_USTRUCT_BODY()
+
+public:
+	UPROPERTY(SaveGame)
+	FName EnemyActorName = NAME_None;
+
+	UPROPERTY(SaveGame)
+	bool bMoveTargetIsMandatory = true;
+
+	UPROPERTY(SaveGame)
+	FVector LastDamageTakenDirection = FVector(1.f, 0.f, 0.f);
+
+	UPROPERTY(SaveGame)
+	bool bDamageIsTakenRecently = false;
+
+	UPROPERTY(SaveGame)
+	float DamageIsTakenRecentlyTime = -1.f; // negative means that timer shouldn't be started
+
+	UPROPERTY(SaveGame)
+	bool bFightHasStarted = false;
+
+	UPROPERTY(SaveGame)
+	bool bGotShotByUnknownEnemy = false;
+};
+
 UCLASS()
-class MYFIRSTGAMEINUE5_API AAIControllerBase : public AAIController
+class MYFIRSTGAMEINUE5_API AAIControllerBase : public AAIController, public ISavable
 {
 	GENERATED_BODY()
 
@@ -43,18 +108,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
 	float MinDistanceFromCoverToEnemy = 500.f;
 
-	struct MoveTarget
-	{
-		FVector Position;
-		FRotator Rotation;
-		float TimeToStayInPosition;
-	};
+	void SetOrderMoveTagetSequence(FMoveTargetSequenceTaskData MoveTargetSequenceTaskData);
+	FMoveTargetSequenceTaskData& GetMoveTargetSequenceTaskData() { return MoveTargetSequenceTaskData; }
 
-	void SetOrderMoveTagetSequence(TArray<MoveTarget> MoveTargets, int32 FirstNonMandatoryTaget, bool LoopTargetSequence);
+	// Properties for game saving
+	UPROPERTY(SaveGame)
+	FName SavedPossessedCharacterName = NAME_None;
 
-	const TArray<MoveTarget>& GetOrderMoveTagetSequence() const { return OrderMoveTagetSequence; }
-	int32 GetFirstNonMandatoryOrderMoveTarget() const { return FirstNonMandatoryOrderMoveTarget; }
-	bool GetLoopTargetSequence() const { return bLoopTargetSequence; }
+	virtual TArray<uint8> GetActorSaveData() override;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")
@@ -65,14 +126,19 @@ protected:
 
 	virtual void OnPossess(APawn* InPawn) override;
 
+	virtual void BeginPlay() override;
+
 private:
-	TArray<MoveTarget> OrderMoveTagetSequence;
-	bool bLoopTargetSequence = false;
-	int32 FirstNonMandatoryOrderMoveTarget = 0;
+	UPROPERTY(SaveGame)
+	FMoveTargetSequenceTaskData MoveTargetSequenceTaskData;
+
+	UPROPERTY(SaveGame)
+	FSavedBlackboardKeys SavedBlackboardKeys;
 
 	void InitBlackboardAndBehaviorTree();
 	void SubscribeToDamageTakerMomentumDelegate();
 	UFUNCTION()
 	void OnMomentumTaken(FName BoneName, FVector ImpactPoint, FVector Momentum);
 	FTimerHandle MomentumTakenTimerHandle;
+	void MomentumTakenIsNotRecentAnymore();
 };

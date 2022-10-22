@@ -3,6 +3,7 @@
 #include "Weapons/Components/WeaponManagerComponent.h"
 #include "Weapons/Components/AmmoComponent.h"
 #include "Controllers/AIControllerBase.h"
+#include "Characters/CharacterBase.h"
 #include "Global/Utilities/MyUtilities.h"
 
 #include "BehaviorTree/BlackboardComponent.h"
@@ -133,6 +134,10 @@ void UAMyTaskFire::MakeTraceIfNeeded(UBehaviorTreeComponent& OwnerComp, uint8* N
 
 EBTNodeResult::Type UAMyTaskFire::GetStatus(const CharacterData& Data, TNodeMemory* Memory)
 {
+	if (auto Character = Cast<ACharacterBase>(Data.Target); Character != nullptr && Character->IsDead())
+	{
+		return EBTNodeResult::Succeeded;
+	}
 	if (
 		Memory->InitialAmmo - Data.AmmoComponent->GetClipAmount() - Data.AmmoComponent->GetArsenalAmount() > MaxShots
 		|| GetWorld()->GetTimeSeconds() - Memory->InitialTime > MaxTimeForThisTask

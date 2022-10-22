@@ -1,14 +1,13 @@
 #pragma once
 
 #include "Characters/CharacterBase.h"
-#include "Global/MySaveGame.h"
 
 #include "CoreMinimal.h"
 
 #include "PlayerCharacter.generated.h"
 
 UCLASS()
-class MYFIRSTGAMEINUE5_API APlayerCharacter : public ACharacterBase, public ISavable
+class MYFIRSTGAMEINUE5_API APlayerCharacter : public ACharacterBase
 {
 	GENERATED_BODY()
 
@@ -54,7 +53,7 @@ public:
 	virtual FTransform GetDefaultTansform() const override;
 
 	// Properties for game saving
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Save")
+	UPROPERTY(SaveGame)
 	TMap<FName /*Level name*/, FName> DesiredPlayerStartNames;
 
 private:

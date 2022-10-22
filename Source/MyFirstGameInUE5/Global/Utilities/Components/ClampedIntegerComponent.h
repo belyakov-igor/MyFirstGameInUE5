@@ -19,10 +19,10 @@ public:
 	FSignalMulticastSignature ReachedMin;
 	FSignalMulticastSignature ReachedMax;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Limits")
 	int32 Min = 0;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Limits")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Limits")
 	int32 Max = 100;
 
 
@@ -42,5 +42,6 @@ protected:
 	virtual void BeginPlay() override;
 
 private:
+	UPROPERTY(SaveGame)
 	int32 Value = 0;
 };

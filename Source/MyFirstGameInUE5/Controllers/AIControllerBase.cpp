@@ -2,12 +2,14 @@
 
 #include "Controllers/MyPlayerState.h"
 #include "Characters/CharacterBase.h"
+#include "Characters/AICharacter.h"
 #include "Global/Utilities/Components/DamageTakerComponent.h"
 #include "AI/Components/MyAIPerceptionComponent.h"
 
 #include "BrainComponent.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/BehaviorTree.h"
+#include "Kismet/GameplayStatics.h"
 
 AAIControllerBase::AAIControllerBase()
 {
@@ -15,6 +17,52 @@ AAIControllerBase::AAIControllerBase()
     SetPerceptionComponent(*MyAIPerceptionComponent);
 
     bWantsPlayerState = true;
+}
+
+TArray<uint8> AAIControllerBase::GetActorSaveData()
+{
+    SavedPossessedCharacterName = GetPawn()->GetFName();
+
+    if (Blackboard != nullptr)
+    {
+        auto EnemyActor = Blackboard->GetValueAsObject(EnemyActorKeyName);
+        SavedBlackboardKeys.EnemyActorName = EnemyActor != nullptr ? EnemyActor->GetFName() : NAME_None;
+        SavedBlackboardKeys.bMoveTargetIsMandatory = Blackboard->GetValueAsBool(MoveTargetIsMandatoryKeyName);
+        SavedBlackboardKeys.LastDamageTakenDirection = Blackboard->GetValueAsVector(LastDamageTakenDirectionKeyName);
+        SavedBlackboardKeys.bDamageIsTakenRecently = Blackboard->GetValueAsBool(DamageIsTakenRecentlyKeyName);
+        SavedBlackboardKeys.DamageIsTakenRecentlyTime =
+            GetWorldTimerManager().IsTimerActive(MomentumTakenTimerHandle)
+            ? GetWorldTimerManager().GetTimerRemaining(MomentumTakenTimerHandle)
+            : -1.f
+        ;
+        SavedBlackboardKeys.bFightHasStarted = Blackboard->GetValueAsBool(FightHasStartedKeyName);
+        SavedBlackboardKeys.bGotShotByUnknownEnemy = Blackboard->GetValueAsBool(GotShotByUnknownEnemyKeyName);
+    }
+
+    return ISavable::GetActorSaveData();
+}
+
+void AAIControllerBase::BeginPlay()
+{
+    Super::BeginPlay();
+
+    TArray<AActor*> Actors;
+    UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAICharacter::StaticClass(), Actors);
+
+    for (auto Actor : Actors)
+    {
+        auto AICharacter = Cast<AAICharacter>(Actor);
+        if (AICharacter == nullptr)
+        {
+            check(false);
+            continue;
+        }
+        if (Actor->GetFName() == SavedPossessedCharacterName)
+        {
+            Possess(AICharacter);
+            break;
+        }
+    }
 }
 
 void AAIControllerBase::OnPossess(APawn* InPawn)
@@ -38,12 +86,37 @@ void AAIControllerBase::InitBlackboardAndBehaviorTree()
     UseBlackboard(BehaviorTreeAsset->BlackboardAsset, BlackboardComp);
     check(BlackboardComp != nullptr);
 
-    BlackboardComp->SetValueAsObject(EnemyActorKeyName, nullptr);
-    BlackboardComp->SetValueAsBool(MoveTargetIsMandatoryKeyName, true);
-    BlackboardComp->SetValueAsVector(LastDamageTakenDirectionKeyName, FVector(1.f, 0.f, 0.f));
-    BlackboardComp->SetValueAsBool(DamageIsTakenRecentlyKeyName, false);
-    BlackboardComp->SetValueAsBool(FightHasStartedKeyName, false);
-    BlackboardComp->SetValueAsBool(GotShotByUnknownEnemyKeyName, false);
+    AActor* EnemyActor = nullptr;
+    if (SavedBlackboardKeys.EnemyActorName != NAME_None)
+    {
+        TArray<AActor*> Actors;
+        UGameplayStatics::GetAllActorsOfClass(GetWorld(), ACharacter::StaticClass(), Actors);
+        for (auto Actor : Actors)
+        {
+            if (Actor->GetFName() == SavedBlackboardKeys.EnemyActorName)
+            {
+                EnemyActor = Actor;
+                break;
+            }
+        }
+    }
+
+    BlackboardComp->SetValueAsObject(EnemyActorKeyName, EnemyActor);
+    BlackboardComp->SetValueAsBool(MoveTargetIsMandatoryKeyName, SavedBlackboardKeys.bMoveTargetIsMandatory);
+    BlackboardComp->SetValueAsVector(LastDamageTakenDirectionKeyName, SavedBlackboardKeys.LastDamageTakenDirection);
+    BlackboardComp->SetValueAsBool(DamageIsTakenRecentlyKeyName, SavedBlackboardKeys.bDamageIsTakenRecently);
+    if (SavedBlackboardKeys.DamageIsTakenRecentlyTime >= 0.f)
+    {
+        GetWorldTimerManager().SetTimer(
+            MomentumTakenTimerHandle
+            , this
+            , &AAIControllerBase::MomentumTakenIsNotRecentAnymore
+            , SavedBlackboardKeys.DamageIsTakenRecentlyTime
+            , /*bInLoop*/ false
+        );
+    }
+    BlackboardComp->SetValueAsBool(FightHasStartedKeyName, SavedBlackboardKeys.bFightHasStarted);
+    BlackboardComp->SetValueAsBool(GotShotByUnknownEnemyKeyName, SavedBlackboardKeys.bGotShotByUnknownEnemy);
 
     RunBehaviorTree(BehaviorTreeAsset);
 }
@@ -78,23 +151,27 @@ void AAIControllerBase::OnMomentumTaken(FName BoneName, FVector ImpactPoint, FVe
     BlackboardComp->SetValueAsBool(DamageIsTakenRecentlyKeyName, true);
     GetWorldTimerManager().SetTimer(
         MomentumTakenTimerHandle
-        ,
-            [this]
-            {
-                UBlackboardComponent* BlackboardComp = Blackboard;
-                check(BlackboardComp != nullptr);
-                BlackboardComp->SetValueAsBool(DamageIsTakenRecentlyKeyName, false);
-                BlackboardComp->SetValueAsBool(GotShotByUnknownEnemyKeyName, false);
-            }
+        , this
+        , &AAIControllerBase::MomentumTakenIsNotRecentAnymore
         , TimeToRememberTakenDamage
         , /*bInLoop*/ false
     );
 }
 
-void AAIControllerBase::SetOrderMoveTagetSequence(TArray<MoveTarget> MoveTargets, int32 FirstNonMandatoryTarget, bool LoopTargetSequence)
+void AAIControllerBase::MomentumTakenIsNotRecentAnymore()
 {
-    check(FirstNonMandatoryTarget <= MoveTargets.Num() && FirstNonMandatoryTarget > 0);
-    OrderMoveTagetSequence = std::move(MoveTargets);
-    FirstNonMandatoryOrderMoveTarget = FirstNonMandatoryTarget;
-    bLoopTargetSequence = LoopTargetSequence;
+    UBlackboardComponent* BlackboardComp = Blackboard;
+    check(BlackboardComp != nullptr);
+    BlackboardComp->SetValueAsBool(DamageIsTakenRecentlyKeyName, false);
+    BlackboardComp->SetValueAsBool(GotShotByUnknownEnemyKeyName, false);
+}
+
+void AAIControllerBase::SetOrderMoveTagetSequence(FMoveTargetSequenceTaskData NewMoveTargetSequenceTaskData)
+{
+    check(
+        NewMoveTargetSequenceTaskData.FirstNonMandatoryOrderMoveTarget
+        <= NewMoveTargetSequenceTaskData.OrderMoveTagetSequence.Num()
+    );
+    check(NewMoveTargetSequenceTaskData.FirstNonMandatoryOrderMoveTarget >= 0);
+    MoveTargetSequenceTaskData = std::move(NewMoveTargetSequenceTaskData);
 }

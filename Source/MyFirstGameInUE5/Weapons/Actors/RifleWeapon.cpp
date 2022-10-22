@@ -28,36 +28,39 @@ void ARifleWeapon::BeginAttack()
 	bAttackIsBeingPerformed = true; 
 	GetWorld()->GetTimerManager().SetTimer(
 		FireTimerHandle
-		, [this]
-			{
-				if (AmmoComponent->GetClipAmount() == 0)
-				{
-					return;
-				}
-				auto Character = Cast<ACharacter>(GetOwner());
-				if (Character == nullptr)
-				{
-					return;
-				}
-				Character->PlayAnimMontage(IsCrouching ? CrouchFireAnimMontage : UprightFireAnimMontage);
-				AmmoComponent->DecreaseClip(1);
-				FHitResult HitResult = MakeTrace();
-				StandardFirearmFXComponent->PlayFX(HitResult, WeaponMesh, MuzzleSocketName);
-				if (!HitResult.bBlockingHit)
-				{
-					return;
-				}
-				UDamageTakerComponent::InflictDamage(HitResult.GetActor(), HitResult.BoneName, Damage);
-				UDamageTakerComponent::GiveMomentum(
-					HitResult.GetActor()
-					, HitResult.BoneName
-					, HitResult.ImpactPoint
-					, (HitResult.TraceEnd - HitResult.TraceStart).GetSafeNormal()* BulletMomentum
-				);
-			}
+		, this
+		, &ARifleWeapon::RifleShotEnded
 		, /*InRate*/ TimeBetweenShots
 		, /*bInLoop*/ true
 		, /*InFirstDelay*/ 0.f
+	);
+}
+
+void ARifleWeapon::RifleShotEnded()
+{
+	if (AmmoComponent->GetClipAmount() == 0)
+	{
+		return;
+	}
+	auto Character = Cast<ACharacter>(GetOwner());
+	if (Character == nullptr)
+	{
+		return;
+	}
+	Character->PlayAnimMontage(IsCrouching ? CrouchFireAnimMontage : UprightFireAnimMontage);
+	AmmoComponent->DecreaseClip(1);
+	FHitResult HitResult = MakeTrace();
+	StandardFirearmFXComponent->PlayFX(HitResult, WeaponMesh, MuzzleSocketName);
+	if (!HitResult.bBlockingHit)
+	{
+		return;
+	}
+	UDamageTakerComponent::InflictDamage(HitResult.GetActor(), HitResult.BoneName, Damage);
+	UDamageTakerComponent::GiveMomentum(
+		HitResult.GetActor()
+		, HitResult.BoneName
+		, HitResult.ImpactPoint
+		, (HitResult.TraceEnd - HitResult.TraceStart).GetSafeNormal() * BulletMomentum
 	);
 }
 

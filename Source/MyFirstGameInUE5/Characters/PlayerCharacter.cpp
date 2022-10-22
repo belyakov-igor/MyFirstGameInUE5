@@ -27,6 +27,8 @@ APlayerCharacter::APlayerCharacter()
 	CameraComponent = CreateDefaultSubobject<UCameraComponent>("CameraComponent");
 	CameraComponent->SetupAttachment(SpringArmComponent);
 
+	InteractingComponent->SetupAttachment(CameraComponent);
+
 	bUseControllerRotationYaw = false;
 
 	AutoPossessPlayer = EAutoReceiveInput::Player0;
@@ -40,7 +42,11 @@ void APlayerCharacter::BeginPlay()
 
 	SpringArmSocketOffsetXYBackup.X = SpringArmComponent->SocketOffset.X;
 	SpringArmSocketOffsetXYBackup.Y = SpringArmComponent->SocketOffset.Y;
-	
+
+	DamageTakerComponent->DamageTaken.AddDynamic(this, &APlayerCharacter::OnHealthChanged);
+
+	Super::BeginPlay();
+
 	if (HUDWidget != nullptr)
 	{
 		HUDWidget->UpdateWeaponAndAmmo();
@@ -52,10 +58,6 @@ void APlayerCharacter::BeginPlay()
 			InteractingComponent_->ChangeHUDText.AddUObject(HUDWidget, &UWidgetCharacterManHUD::ChangeInteractingHUDText);
 		}
 	}
-
-	DamageTakerComponent->DamageTaken.AddDynamic(this, &APlayerCharacter::OnHealthChanged);
-
-	Super::BeginPlay();
 }
 
 void APlayerCharacter::PossessedBy(AController* NewController)

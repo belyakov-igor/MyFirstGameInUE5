@@ -29,4 +29,6 @@ private:
 	FTimerHandle TimerHandle;
 
 	virtual void InitializeFromAsset(UBehaviorTree& Asset) override;
+
+	void Succeed();
 };

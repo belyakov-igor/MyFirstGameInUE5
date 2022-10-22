@@ -131,7 +131,7 @@ void UWeaponManagerComponent::SetPreviousWeapon()
 	SetCurrentWeaponSlot(Slot);
 }
 
-int32 UWeaponManagerComponent::GetCurrentWeaponIndex() const
+int32 UWeaponManagerComponent::GetCurrentWeaponSlot() const
 {
 	checkf(GetCurrentWeapon() != nullptr, TEXT("Add some weapons first"));
 	return CurrentWeaponSlot;
@@ -199,4 +199,95 @@ void UWeaponManagerComponent::SetWeaponVisibility(bool Visible)
 	{
 		Weapon->WeaponMesh->SetVisibility(Visible);
 	}
+}
+
+namespace
+{
+	using CWSInt = decltype(std::declval<UWeaponManagerComponent>().GetCurrentWeaponSlot());
+	static constexpr size_t NamesOffset = ((sizeof(CWSInt) + 1) / alignof(TCHAR)) * alignof(TCHAR);
+}
+
+TArray<uint8> UWeaponManagerComponent::GetSerializedData() const
+{
+	TArray<uint8> Data;
+
+	int32 Count = NamesOffset;
+	for (auto Weapon : Weapons)
+	{
+		if (Weapon == nullptr)
+		{
+			continue;
+		}
+
+		Count += (Weapon->GetFName().GetStringLength() + 1) * sizeof(TCHAR);
+	}
+
+	Data.Reserve(Count);
+
+	Data.SetNum(NamesOffset);
+	*reinterpret_cast<CWSInt*>(Data.GetData()) = CurrentWeaponSlot;
+
+	TArray<AActor*> Actors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseWeapon::StaticClass(), Actors);
+
+	for (auto Weapon : Weapons)
+	{
+		if (Weapon == nullptr)
+		{
+			continue;
+		}
+
+		FString Name = Weapon->GetName();
+		auto Len = (Name.Len() + 1) * sizeof(TCHAR);
+		size_t Pos = Data.Num();
+		Data.SetNum(Data.Num() + Len);
+		memcpy(Data.GetData() + Pos, GetData(Name), Len);
+	}
+
+	return Data;
+}
+
+void UWeaponManagerComponent::ApplySerializedData(const TArray<uint8>& Data)
+{
+	if (Data.Num() < sizeof(CWSInt))
+	{
+		return;
+	}
+
+	TArray<AActor*> Actors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), ABaseWeapon::StaticClass(), Actors);
+
+	auto HasName = [&Data](const FName Name)
+	{
+		auto WData = reinterpret_cast<const TCHAR*>(Data.GetData() + NamesOffset);
+		auto Num = Data.Num() / sizeof(TCHAR);
+		auto Pos = 0;
+		while (Pos < Num)
+		{
+			if (WData + Pos == Name)
+			{
+				return true;
+			}
+			Pos = std::find(WData + Pos, WData + Num, '\0') - WData + 1;
+		}
+		return false;
+	};
+
+	for (auto Actor : Actors)
+	{
+		auto Weapon = Cast<ABaseWeapon>(Actor);
+		if (Weapon == nullptr)
+		{
+			check(false);
+			continue;
+		}
+
+		FName Name = Weapon->GetFName();
+		if (HasName(Name))
+		{
+			AddWeapon(Weapon);
+		}
+	}
+
+	SetCurrentWeaponSlot(*reinterpret_cast<const CWSInt*>(Data.GetData()));
 }

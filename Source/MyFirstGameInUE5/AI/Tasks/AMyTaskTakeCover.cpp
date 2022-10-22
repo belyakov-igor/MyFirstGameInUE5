@@ -76,10 +76,16 @@ void UAMyTaskTakeCover::OnMoveCompleted(FAIRequestID RequestID, EPathFollowingRe
 
 	GetWorld()->GetTimerManager().SetTimer(
 		TimerHandle
-		, [this]{ TimeInCoverExpired(true); }
+		, this
+		, &UAMyTaskTakeCover::TimeInCoverExpiredWithSuccess
 		, TimeInCover
 		, /*bInLoop*/ false
 	);
+}
+
+void UAMyTaskTakeCover::TimeInCoverExpiredWithSuccess()
+{
+	TimeInCoverExpired(true);
 }
 
 void UAMyTaskTakeCover::TimeInCoverExpired(bool Succeeded)

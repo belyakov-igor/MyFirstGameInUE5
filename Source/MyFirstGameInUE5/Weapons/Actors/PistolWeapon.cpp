@@ -37,7 +37,8 @@ void APistolWeapon::BeginAttack()
 	bAttackIsBeingPerformed = true;
 	GetWorld()->GetTimerManager().SetTimer(
 		FireTimerHandle
-		, [this]{ bAttackIsBeingPerformed = false; }
+		, this
+		, &APistolWeapon::PistolShotEnded
 		, /*InRate*/ TimeBetweenShots
 		, /*bInLoop*/ false
 	);
@@ -56,4 +57,9 @@ void APistolWeapon::BeginAttack()
 		, HitResult.ImpactPoint
 		, (HitResult.TraceEnd - HitResult.TraceStart).GetSafeNormal() * BulletMomentum
 	);
+}
+
+void APistolWeapon::PistolShotEnded()
+{
+	bAttackIsBeingPerformed = false;
 }

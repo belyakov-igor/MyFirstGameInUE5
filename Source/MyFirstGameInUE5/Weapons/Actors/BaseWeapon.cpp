@@ -111,3 +111,29 @@ FTransform ABaseWeapon::GetMuzzleSocketTransform() const
 	check(WeaponMesh != nullptr);
 	return WeaponMesh->GetSocketTransform(MuzzleSocketName);
 }
+
+TArray<uint8> ABaseWeapon::GetActorSaveData()
+{
+	auto AmmoComponent = Cast<UAmmoComponent>(FindComponentByClass(UAmmoComponent::StaticClass()));
+	SavedClipAmount = AmmoComponent != nullptr ? AmmoComponent->GetClipAmount() : -1;
+	SavedArsenalAmount = AmmoComponent != nullptr ? AmmoComponent->GetArsenalAmount() : -1;
+	return ISavable::GetActorSaveData();
+}
+
+void ABaseWeapon::BeginPlay()
+{
+	// Apply saved parameters { =====================================================================
+	if (
+		auto AmmoComponent = Cast<UAmmoComponent>(FindComponentByClass(UAmmoComponent::StaticClass()))
+		; AmmoComponent != nullptr && SavedClipAmount >= 0 && SavedArsenalAmount >= 0
+	)
+	{
+		AmmoComponent->MakeClipEmpty();
+		AmmoComponent->MakeArsenalEmpty();
+		AmmoComponent->IncreaseClip(SavedClipAmount);
+		AmmoComponent->IncreaseArsenal(SavedArsenalAmount);
+	}
+	// } Apply saved parameters =====================================================================
+
+	Super::BeginPlay();
+}

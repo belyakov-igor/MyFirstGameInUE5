@@ -20,8 +20,6 @@ protected:
 	virtual EBTNodeResult::Type AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
 
 private:
-	uint16 MoveTargetIndex = 0;
-	bool bFirstLoop = true;
 	class AAIControllerBase* Controller;
 	FTimerHandle TimerHandle;
 
@@ -29,6 +27,8 @@ private:
 
 	UFUNCTION()
 	void OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result);
+
+	void StayingInPosotionFinished();
 
 	void UpdateBlackBoardKeyTargetIsMandatory();
 };

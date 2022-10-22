@@ -54,20 +54,22 @@ EBTNodeResult::Type UAMyTaskFaceDirection::ExecuteTask(UBehaviorTreeComponent& O
 
 	GetWorld()->GetTimerManager().SetTimer(
 		TimerHandle
-		,
-			[this]
-			{
-				check(Controller != nullptr);
-				Controller->ClearFocus(EAIFocusPriority::Gameplay);
-				auto Tree = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
-				check(Tree != nullptr);
-				FinishLatentTask(*Tree, EBTNodeResult::Succeeded);
-			}
+		, this
+		, &UAMyTaskFaceDirection::Succeed
 		, TimeInThisTask
 		, /*bInLoop*/ false
 	);
 
 	return EBTNodeResult::InProgress;
+}
+
+void UAMyTaskFaceDirection::Succeed()
+{
+	check(Controller != nullptr);
+	Controller->ClearFocus(EAIFocusPriority::Gameplay);
+	auto Tree = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
+	check(Tree != nullptr);
+	FinishLatentTask(*Tree, EBTNodeResult::Succeeded);
 }
 
 EBTNodeResult::Type UAMyTaskFaceDirection::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)

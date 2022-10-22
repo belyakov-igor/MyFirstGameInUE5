@@ -45,6 +45,10 @@ void UMySaveGame::Update(UWorld* World)
 
 		auto Savable = Cast<ISavable>(Actor);
 		check(Savable != nullptr);
+		if (Savable->NoNeedToSaveThisOne())
+		{
+			continue;
+		}
 
 		if (Savable->IsGlobal())
 		{

@@ -37,4 +37,5 @@ private:
 	class APlaceToCover* FindCover(UBehaviorTreeComponent& OwnerComp) const;
 
 	void TimeInCoverExpired(bool Succeeded);
+	void TimeInCoverExpiredWithSuccess();
 };

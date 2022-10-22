@@ -1,12 +1,14 @@
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Interaction/InteractableActor.h"
+#include "Global/MySaveGame.h"
+
+#include "CoreMinimal.h"
 
 #include "WeaponPickup.generated.h"
 
 UCLASS()
-class MYFIRSTGAMEINUE5_API AWeaponPickup : public AInteractableActor
+class MYFIRSTGAMEINUE5_API AWeaponPickup : public AInteractableActor, public ISavable
 {
 	GENERATED_BODY()
 

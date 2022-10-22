@@ -14,21 +14,63 @@ AAISpawnAndOrderActor::AAISpawnAndOrderActor()
 	SpawnTriggerComponent->InitBoxExtent(FVector(100.f));
 }
 
-void AAISpawnAndOrderActor::NotifyActorBeginOverlap(AActor* OtherActor)
+TArray<uint8> AAISpawnAndOrderActor::GetActorSaveData()
 {
 	if (bAlreadyTriggered)
+	{
+		TArray<UActorComponent*> SOComponents;
+		GetComponents(UAISpawnAndOrderComponent::StaticClass(), SOComponents);
+		SavedSpawnDelays.Empty();
+		SavedSpawnDelays.Reserve(SOComponents.Num());
+		for (auto Component : SOComponents)
+		{
+			auto SOComponent = Cast<UAISpawnAndOrderComponent>(Component);
+			if (ensure(SOComponent))
+			{
+				SavedSpawnDelays.Add(SOComponent->GetSpawnDelayRemaining());
+			}
+		}
+	}
+	return ISavable::GetActorSaveData();
+}
+
+void AAISpawnAndOrderActor::BeginPlay()
+{
+	Super::BeginPlay();
+
+	if (bAlreadyTriggered)
+	{
+		TArray<UActorComponent*> SOComponents;
+		GetComponents(UAISpawnAndOrderComponent::StaticClass(), SOComponents);
+		check(SavedSpawnDelays.Num() == SOComponents.Num());
+		for (int32 i = 0; i != SOComponents.Num(); ++i)
+		{
+			auto SOComponent = Cast<UAISpawnAndOrderComponent>(SOComponents[i]);
+			if (ensure(SOComponent))
+			{
+				SOComponent->SetSpawnDelay(SavedSpawnDelays[i]);
+			}
+		}
+		Spawn();
+	}
+}
+
+void AAISpawnAndOrderActor::NotifyActorBeginOverlap(AActor* OtherActor)
+{
+	if (
+		auto Pawn = Cast<APawn>(OtherActor);
+		bAlreadyTriggered || Pawn == nullptr || !Pawn->IsPlayerControlled()
+	)
 	{
 		return;
 	}
 	bAlreadyTriggered = true;
-	{
-		auto Pawn = Cast<APawn>(OtherActor);
-		if (Pawn == nullptr || !Pawn->IsPlayerControlled())
-		{
-			return;
-		}
-	}
 
+	Spawn();
+}
+
+void AAISpawnAndOrderActor::Spawn()
+{
 	TArray<UActorComponent*> SOComponents;
 	GetComponents(UAISpawnAndOrderComponent::StaticClass(), SOComponents);
 	for (auto Component : SOComponents)

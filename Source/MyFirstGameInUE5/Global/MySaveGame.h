@@ -75,6 +75,8 @@ public:
 	void Apply(UWorld* World) const;
 };
 
+//////////////////////////////////////////////////////////////////////////////////////
+
 UINTERFACE(MinimalAPI, Blueprintable)
 class USavable : public UInterface
 {
@@ -87,6 +89,7 @@ class ISavable
 
 public:
 	virtual bool IsGlobal() const { return false; }
+	virtual bool NoNeedToSaveThisOne() const { return false; }
 	virtual FTransform GetDefaultTansform() const { return FTransform{}; }
 
 	virtual TArray<uint8> GetActorSaveData();

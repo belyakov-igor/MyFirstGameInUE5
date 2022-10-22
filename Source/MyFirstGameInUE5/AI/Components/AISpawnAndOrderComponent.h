@@ -28,6 +28,9 @@ public:
 
 	void ScheduleSpawn();
 
+	float GetSpawnDelayRemaining() const;
+	void SetSpawnDelay(float Value) { SpawnDelay = Value; }
+
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
 	TArray<FWeaponAndAmmo> WeaponAndAmmoArray;
@@ -49,4 +52,5 @@ protected:
 
 private:
 	FTimerHandle TimerHandle;
+	void Spawn();
 };

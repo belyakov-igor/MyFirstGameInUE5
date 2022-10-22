@@ -35,13 +35,14 @@ EBTNodeResult::Type UAMyTaskMoveTargetSequence::Move(UBehaviorTreeComponent& Own
 {
 	check(Controller != nullptr);
 
-	const auto& Sequence = Controller->GetOrderMoveTagetSequence();
-	if (MoveTargetIndex >= Sequence.Num())
+	auto& SequenceData = Controller->GetMoveTargetSequenceTaskData();
+	const auto& Sequence = SequenceData.OrderMoveTagetSequence;
+	if (SequenceData.CurrentMoveTargetIndex >= Sequence.Num())
 	{
-		if (Controller->GetLoopTargetSequence())
+		if (SequenceData.bLoopTargetSequence)
 		{
-			MoveTargetIndex = 0;
-			bFirstLoop = false;
+			SequenceData.CurrentMoveTargetIndex = 0;
+			SequenceData.bCurrentLoopIsFirst = false;
 		}
 		else
 		{
@@ -49,7 +50,7 @@ EBTNodeResult::Type UAMyTaskMoveTargetSequence::Move(UBehaviorTreeComponent& Own
 		}
 	}
 	Controller->ReceiveMoveCompleted.AddDynamic(this, &UAMyTaskMoveTargetSequence::OnMoveCompleted);
-	Controller->MoveToLocation(Sequence[MoveTargetIndex].Position);
+	Controller->MoveToLocation(Sequence[SequenceData.CurrentMoveTargetIndex].Position);
 	return EBTNodeResult::InProgress;
 }
 
@@ -68,8 +69,9 @@ void UAMyTaskMoveTargetSequence::OnMoveCompleted(FAIRequestID RequestID, EPathFo
 	}
 
 	Controller->ReceiveMoveCompleted.RemoveDynamic(this, &UAMyTaskMoveTargetSequence::OnMoveCompleted);
-	const auto& MoveTarget = Controller->GetOrderMoveTagetSequence()[MoveTargetIndex];
-	++MoveTargetIndex;
+	auto& SequenceData = Controller->GetMoveTargetSequenceTaskData();
+	const auto& MoveTarget = SequenceData.OrderMoveTagetSequence[SequenceData.CurrentMoveTargetIndex];
+	++SequenceData.CurrentMoveTargetIndex;
 
 	UpdateBlackBoardKeyTargetIsMandatory();
 
@@ -78,31 +80,36 @@ void UAMyTaskMoveTargetSequence::OnMoveCompleted(FAIRequestID RequestID, EPathFo
 		Controller->SetFocalPoint(Pawn->GetActorLocation() + MoveTarget.Rotation.Vector());
 	}
 
-	auto Lambda =
-		[this]
-		{
-			check(Controller != nullptr);
-			Controller->ClearFocus(EAIFocusPriority::Gameplay);
-			auto Tree = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
-			check(Tree != nullptr);
-			if (MoveTargetIndex == Controller->GetOrderMoveTagetSequence().Num() && !Controller->GetLoopTargetSequence())
-			{
-				FinishLatentTask(*Tree, EBTNodeResult::Succeeded);
-			}
-			else if (auto Result_ = Move(*Tree); Result_ != EBTNodeResult::InProgress)
-			{
-				FinishLatentTask(*Tree, Result_);
-			}
-		}
-	;
-
 	if (MoveTarget.TimeToStayInPosition > 0)
 	{
-		GetWorld()->GetTimerManager().SetTimer(TimerHandle, Lambda, MoveTarget.TimeToStayInPosition, /*bInLoop*/ false);
+		GetWorld()->GetTimerManager().SetTimer(
+			TimerHandle
+			, this
+			, &UAMyTaskMoveTargetSequence::StayingInPosotionFinished
+			, MoveTarget.TimeToStayInPosition
+			, /*bInLoop*/ false
+		);
 	}
 	else
 	{
-		Lambda();
+		StayingInPosotionFinished();
+	}
+}
+
+void UAMyTaskMoveTargetSequence::StayingInPosotionFinished()
+{
+	check(Controller != nullptr);
+	Controller->ClearFocus(EAIFocusPriority::Gameplay);
+	auto Tree = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
+	check(Tree != nullptr);
+	auto& SequenceData = Controller->GetMoveTargetSequenceTaskData();
+	if (SequenceData.CurrentMoveTargetIndex == SequenceData.OrderMoveTagetSequence.Num() && !SequenceData.bLoopTargetSequence)
+	{
+		FinishLatentTask(*Tree, EBTNodeResult::Succeeded);
+	}
+	else if (auto Result_ = Move(*Tree); Result_ != EBTNodeResult::InProgress)
+	{
+		FinishLatentTask(*Tree, Result_);
 	}
 }
 
@@ -111,9 +118,10 @@ void UAMyTaskMoveTargetSequence::UpdateBlackBoardKeyTargetIsMandatory()
 	const auto Blackboard = Controller->GetBlackboardComponent();
 	if (Blackboard != nullptr)
 	{
+		auto& SequenceData = Controller->GetMoveTargetSequenceTaskData();
 		Blackboard->SetValueAsBool(
 			Controller->MoveTargetIsMandatoryKeyName
-			, MoveTargetIndex < Controller->GetFirstNonMandatoryOrderMoveTarget()
+			, SequenceData.CurrentMoveTargetIndex < SequenceData.FirstNonMandatoryOrderMoveTarget
 		);
 	}
 }

@@ -46,4 +46,5 @@ protected:
 
 private:
     FTimerHandle FireTimerHandle;
+    void PistolShotEnded();
 };

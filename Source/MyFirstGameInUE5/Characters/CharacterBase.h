@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Global/Utilities/MyUtilities.h"
+#include "Global/MySaveGame.h"
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
@@ -8,7 +9,7 @@
 #include "CharacterBase.generated.h"
 
 UCLASS()
-class MYFIRSTGAMEINUE5_API ACharacterBase : public ACharacter
+class MYFIRSTGAMEINUE5_API ACharacterBase : public ACharacter, public ISavable
 {
 	GENERATED_BODY()
 
@@ -17,7 +18,7 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, SaveGame, Category = "Components")
 	class UClampedIntegerComponent* HealthComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
@@ -136,6 +137,21 @@ public:
 	virtual void OnWeaponAndAmmoChanged();
 
 	FTransform GetCurrentWeaponMuzzleSocketTransform() const;
+
+	// Properties for game saving
+	UPROPERTY(SaveGame)
+	FRotator SavedControlRotation = FRotator::ZeroRotator;
+
+	UPROPERTY(SaveGame)
+	int32 SavedHealth = -1; // negative means default
+
+	UPROPERTY(SaveGame)
+	TArray<uint8> SavedRangedWeaponData;
+
+	UPROPERTY(SaveGame)
+	bool SavedIsCrouching = false;
+
+	virtual TArray<uint8> GetActorSaveData() override;
 
 protected:
 	virtual void BeginPlay() override;
@@ -276,6 +292,9 @@ private:
 	FTimerHandle StaminaDecreasingTimerHandle{};
 	FTimerHandle StaminaRegenerationTimerHandle{};
 	void WaitForSomeTimeAndStartRegeneratingStaminaIfNeeded(int32 OldStamina, int32 NewStamina);
+	void LoopedDecreasingOfStamina();
+	void LoopedIncreasingOfStamina();
+	void SetTimerStartingStaminaRegeneration();
 // } Stamina
 
 // Transition Updater {

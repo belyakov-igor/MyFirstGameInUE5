@@ -42,6 +42,15 @@ ACharacterBase::ACharacterBase()
 	SetAimState(State_Aim_NoAim);
 }
 
+TArray<uint8> ACharacterBase::GetActorSaveData()
+{
+	SavedControlRotation = GetControlRotation();
+	SavedHealth = HealthComponent->GetValue();
+	SavedRangedWeaponData = RangedWeaponManagerComponent->GetSerializedData();
+	SavedIsCrouching = CrouchCoef > 0.f;
+	return ISavable::GetActorSaveData();
+}
+
 void ACharacterBase::BeginPlay()
 {
 	Super::BeginPlay();
@@ -78,6 +87,24 @@ void ACharacterBase::BeginPlay()
 
 	DamageTakerComponent->DamageTaken.AddDynamic(this, &ACharacterBase::TakeDamageCallback);
 	DamageTakerComponent->MomentumTaken.AddDynamic(this, &ACharacterBase::TakeMomentumCallback);
+
+	// Apply saved parameters { =====================================================================
+	if (GetController() != nullptr)
+	{
+		GetController()->SetControlRotation(SavedControlRotation);
+	}
+	RangedWeaponManagerComponent->ApplySerializedData(SavedRangedWeaponData);
+	if (SavedHealth >= 0)
+	{
+		HealthComponent->SetValue(SavedHealth);
+	}
+	if (SavedIsCrouching)
+	{
+		SetCapsuleHalfHeight(1.f);
+		(void)UprightToCrouchUpdater.Update(UprightToCrouchUpdater.TransitionTime);
+		SetState(State_Crouch);
+	}
+	// } Apply saved parameters =====================================================================
 }
 
 void ACharacterBase::Tick(float DeltaTime)
@@ -200,7 +227,8 @@ void ACharacterBase::FState_UprightRunning::TakeOver()
 {
 	Character.GetWorld()->GetTimerManager().SetTimer(
 		Character.StaminaDecreasingTimerHandle
-		, [this] { Character.StaminaComponent->Decrease(Character.AmountOfStaminaDecresingOnRunning); }
+		, &Character
+		, &ACharacterBase::LoopedDecreasingOfStamina
 		, /*InRate*/ Character.TimeIntervalForStaminaDecresingOnRunning
 		, /*bInLoop*/ true
 	);
@@ -617,26 +645,35 @@ void ACharacterBase::WaitForSomeTimeAndStartRegeneratingStaminaIfNeeded(int32 Ol
 	}
 	GetWorld()->GetTimerManager().SetTimer(
 		StaminaRegenerationTimerHandle
-		,
-			[this]
-			{
-				GetWorld()->GetTimerManager().SetTimer(
-					StaminaRegenerationTimerHandle
-					, 
-						[this]
-						{
-							StaminaComponent->Increase(AmountOfStaminaRegeneration);
-							if (StaminaComponent->GetValue() == StaminaComponent->Max)
-							{
-								GetWorld()->GetTimerManager().ClearTimer(StaminaRegenerationTimerHandle);
-							}
-						}
-					, TimeIntervalForStaminaRegeneration
-					, /*bInLoop*/ true
-				);
-			}
+		, this
+		, &ACharacterBase::SetTimerStartingStaminaRegeneration
 		, TimeBeforeStaminaRegeneration
 		, /*bInLoop*/ false
+	);
+}
+
+void ACharacterBase::LoopedDecreasingOfStamina()
+{
+	StaminaComponent->Decrease(AmountOfStaminaDecresingOnRunning);
+}
+
+void ACharacterBase::LoopedIncreasingOfStamina()
+{
+	StaminaComponent->Increase(AmountOfStaminaRegeneration);
+	if (StaminaComponent->GetValue() == StaminaComponent->Max)
+	{
+		GetWorld()->GetTimerManager().ClearTimer(StaminaRegenerationTimerHandle);
+	}
+}
+
+void ACharacterBase::SetTimerStartingStaminaRegeneration()
+{
+	GetWorld()->GetTimerManager().SetTimer(
+		StaminaRegenerationTimerHandle
+		, this
+		, &ACharacterBase::LoopedIncreasingOfStamina
+		, TimeIntervalForStaminaRegeneration
+		, /*bInLoop*/ true
 	);
 }
 

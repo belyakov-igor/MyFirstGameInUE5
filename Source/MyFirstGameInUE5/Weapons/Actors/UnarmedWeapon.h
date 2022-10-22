@@ -33,6 +33,9 @@ public:
 
 	virtual void BeginAttack() override;
 
+	// Properties for game saving
+	virtual bool NoNeedToSaveThisOne() const override { return true; }
+
 protected:
 	virtual void BeginPlay() override;
 
