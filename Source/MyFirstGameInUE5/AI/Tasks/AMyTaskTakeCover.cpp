@@ -29,22 +29,22 @@ EBTNodeResult::Type UAMyTaskTakeCover::ExecuteTask(UBehaviorTreeComponent& Owner
 		return EBTNodeResult::Failed;
 	}
 	
-	auto Cover = FindCover(OwnerComp);
+	Cover = FindCover(OwnerComp);
 	if (Cover == nullptr)
 	{
 		return EBTNodeResult::Failed;
 	}
 
 	Controller->ReceiveMoveCompleted.AddDynamic(this, &UAMyTaskTakeCover::OnMoveCompleted);
-	auto Pos = Cover->NearestPosInCover(Pawn->GetActorLocation());
-	Controller->MoveToLocation(Pos);
-	CurrentCoverRequiresCrouching = Cover->NeedToCrouch;
-	CurrentCoverOrientation = Cover->OrientationInPos(Pos);
+	auto Pos = Cover->GetActorLocation();
+	Controller->MoveToLocation(Cover->GetActorLocation());
+	Cover->SetIsOccupied(true);
 	return EBTNodeResult::InProgress;
 }
 
 EBTNodeResult::Type UAMyTaskTakeCover::AbortTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
 {
+	check(Controller != nullptr && Cover != nullptr);
 	Controller->ReceiveMoveCompleted.RemoveDynamic(this, &UAMyTaskTakeCover::OnMoveCompleted);
 	Controller->StopMovement();
 	Controller->ClearFocus(EAIFocusPriority::Gameplay);
@@ -53,20 +53,22 @@ EBTNodeResult::Type UAMyTaskTakeCover::AbortTask(UBehaviorTreeComponent& OwnerCo
 	{
 		Character->Crouch(false);
 	}
+	RemoveDelegateFromDamageTakerComponent();
+	Cover->SetIsOccupied(false);
 	return EBTNodeResult::Aborted;
 }
 
 void UAMyTaskTakeCover::OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result)
 {
-	check(Controller != nullptr);
+	check(Controller != nullptr && Cover != nullptr);
 	auto Pawn = Controller->GetPawn();
 	if (auto Character = Cast<AAICharacter>(Pawn); Character != nullptr)
 	{
-		Character->Crouch(CurrentCoverRequiresCrouching);
+		Character->Crouch(Cover->NeedToCrouch);
 	}
 	if (Pawn != nullptr)
 	{
-		Controller->SetFocalPoint(Pawn->GetActorLocation() + CurrentCoverOrientation);
+		Controller->SetFocalPoint(Pawn->GetActorLocation() + Cover->GetActorForwardVector());
 		auto DamageTakerComponent = Pawn->FindComponentByClass<UDamageTakerComponent>();
 		check(DamageTakerComponent != nullptr);
 		DamageTakerComponent->DamageTaken.AddDynamic(this, &UAMyTaskTakeCover::OnDamageTaken);
@@ -96,6 +98,8 @@ void UAMyTaskTakeCover::TimeInCoverExpired(bool Succeeded)
 	{
 		Character->Crouch(false);
 	}
+	RemoveDelegateFromDamageTakerComponent();
+	Cover->SetIsOccupied(false);
 	auto Tree = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
 	check(Tree != nullptr);
 	FinishLatentTask(*Tree, Succeeded ? EBTNodeResult::Succeeded : EBTNodeResult::Failed);
@@ -103,25 +107,31 @@ void UAMyTaskTakeCover::TimeInCoverExpired(bool Succeeded)
 
 void UAMyTaskTakeCover::OnDamageTaken(FName BoneName, float Damage)
 {
+	RemoveDelegateFromDamageTakerComponent();
+	TimeInCoverExpired(false);
+}
+
+void UAMyTaskTakeCover::RemoveDelegateFromDamageTakerComponent()
+{
 	check(Controller != nullptr);
 	auto Pawn = Controller->GetPawn();
 	auto DamageTakerComponent = Pawn->FindComponentByClass<UDamageTakerComponent>();
 	check(DamageTakerComponent != nullptr);
 	DamageTakerComponent->DamageTaken.RemoveDynamic(this, &UAMyTaskTakeCover::OnDamageTaken);
-
-	TimeInCoverExpired(false);
 }
 
 class APlaceToCover* UAMyTaskTakeCover::FindCover(UBehaviorTreeComponent& OwnerComp) const
 {
 	static constexpr float MinCos = 0.7;
 
-	FVector DamageDirection(1.f, 0.f, 0.f);
 	AActor* EnemyActor = nullptr;
 	if (auto Blackboard = OwnerComp.GetBlackboardComponent(); Blackboard != nullptr)
 	{
-		DamageDirection = -Blackboard->GetValueAsVector(Controller->LastDamageTakenDirectionKeyName);
 		EnemyActor = Cast<AActor>(Blackboard->GetValueAsObject(Controller->EnemyActorKeyName));
+		if (EnemyActor == nullptr)
+		{
+			return nullptr;
+		}
 	}
 	else
 	{
@@ -138,8 +148,13 @@ class APlaceToCover* UAMyTaskTakeCover::FindCover(UBehaviorTreeComponent& OwnerC
 				auto Cover = Cast<APlaceToCover>(Actor);
 				return
 					Cover == nullptr
-					|| (Cover->GetCenter() - Pawn->GetActorLocation()).Length() > Controller->RadiusOfCoverSearch
-					|| EnemyActor != nullptr && (Cover->GetCenter() - EnemyActor->GetActorLocation()).Length() < Controller->MinDistanceFromCoverToEnemy
+					|| Cover->GetIsOccupied()
+					|| (Cover->GetActorLocation() - Pawn->GetActorLocation()).Length() > Controller->RadiusOfCoverSearch
+					||
+						EnemyActor != nullptr
+						&&
+							(Cover->GetActorLocation() - EnemyActor->GetActorLocation()).Length()
+							< Controller->MinDistanceFromCoverToEnemy
 				;
 			}
 		, /*bAllowShrinking*/ true
@@ -151,15 +166,19 @@ class APlaceToCover* UAMyTaskTakeCover::FindCover(UBehaviorTreeComponent& OwnerC
 	float BestCriterion = FLT_MAX;
 	for (auto Actor : Actors)
 	{
-		auto Cover = Cast<APlaceToCover>(Actor);
-		if (Cover == nullptr)
+		auto Cover_ = Cast<APlaceToCover>(Actor);
+		if (Cover_ == nullptr)
 		{
 			check(false);
 			continue;
 		}
 
-		FVector CoverForward = (Cover->CoverPositionRange1->GetForwardVector() + Cover->CoverPositionRange2->GetForwardVector()).GetSafeNormal();
-		auto Cos = FVector::DotProduct(DamageDirection, CoverForward); // the higher the better
+		auto Cos =
+			FVector::DotProduct(
+				(Cover_->GetActorLocation() - EnemyActor->GetActorLocation()).GetSafeNormal()
+				, Cover_->GetActorForwardVector()
+			)
+		; // the higher the better
 
 		if (Cos < MinCos)
 		{
@@ -167,13 +186,7 @@ class APlaceToCover* UAMyTaskTakeCover::FindCover(UBehaviorTreeComponent& OwnerC
 		}
 
 		float Cost;
-		auto Result =
-			NavSys->GetPathCost(
-				Pawn->GetActorLocation()
-				, Cover->NearestPosInCover(Pawn->GetActorLocation())
-				, Cost
-			)
-		;
+		auto Result = NavSys->GetPathCost(Pawn->GetActorLocation(), Cover_->GetActorLocation(), Cost);
 		if (Result != ENavigationQueryResult::Success)
 		{
 			continue;
@@ -183,7 +196,7 @@ class APlaceToCover* UAMyTaskTakeCover::FindCover(UBehaviorTreeComponent& OwnerC
 
 		if (Criterion < BestCriterion)
 		{
-			BestCover = Cover;
+			BestCover = Cover_;
 			BestCriterion = Criterion;
 		}
 	}

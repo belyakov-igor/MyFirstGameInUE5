@@ -14,22 +14,17 @@ public:
 	APlaceToCover();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
-	class USceneComponent* CoverPositionRange1;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
-	class USceneComponent* CoverPositionRange2;
+	class USceneComponent* CoverPosition;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cover")
 	bool NeedToCrouch = false;
 
-
-
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Cover")
-	FVector NearestPosInCover(FVector ToWhat) const;
+	bool GetIsOccupied() const { return bOccupied; }
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Cover")
-	FVector OrientationInPos(FVector Pos) const;
+	UFUNCTION(BlueprintCallable, Category = "Cover")
+	void SetIsOccupied(bool Value) { bOccupied = Value; }
 
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Cover")
-	FVector GetCenter() const;
+private:
+	bool bOccupied = false;
 };

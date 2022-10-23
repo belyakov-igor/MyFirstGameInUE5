@@ -11,6 +11,7 @@ AAICharacter::AAICharacter()
 	{
 		Movement->bUseControllerDesiredRotation = true;
 		Movement->RotationRate = FRotator(0, 200, 0);
+		Movement->bUseRVOAvoidance = true;
 	}
 
 	Cravings.bWantsToAim = true;

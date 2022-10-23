@@ -6,6 +6,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "Components/DecalComponent.h"
 #include "Sound/SoundCue.h"
+#include "Perception/AISense_Hearing.h"
 
 UStandardFirearmFXComponent::UStandardFirearmFXComponent()
 {
@@ -32,9 +33,10 @@ void UStandardFirearmFXComponent::PlayFX(FHitResult Hit, USkeletalMeshComponent*
     {
         check(WeaponMesh != nullptr);
         UGameplayStatics::SpawnSoundAttached(ShotSound, WeaponMesh, MuzzleSocketName);
+        UAISense_Hearing::ReportNoiseEvent(GetWorld(), GetOwner()->GetActorLocation(), 1.f, GetOwner(), ShotSound->MaxDistance);
     }
 
-    if (BulletTraceNiagaraEffect != nullptr, WeaponMesh)
+    if (BulletTraceNiagaraEffect != nullptr && WeaponMesh != nullptr)
     {
         const auto TraceFXComponent = UNiagaraFunctionLibrary::SpawnSystemAtLocation(
             GetWorld()

@@ -108,6 +108,9 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
 	float MinDistanceFromCoverToEnemy = 500.f;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
+	float MaxDistanceToAllyToTellItAboutEnemy = 5000.f;
+
 	void SetOrderMoveTagetSequence(FMoveTargetSequenceTaskData MoveTargetSequenceTaskData);
 	FMoveTargetSequenceTaskData& GetMoveTargetSequenceTaskData() { return MoveTargetSequenceTaskData; }
 

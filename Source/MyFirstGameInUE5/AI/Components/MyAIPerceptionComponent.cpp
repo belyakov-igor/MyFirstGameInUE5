@@ -6,11 +6,13 @@
 
 #include "AIController.h"
 #include "Perception/AISense_Sight.h"
+#include "Perception/AISense_Hearing.h"
 
 AActor* UMyAIPerceptionComponent::GetEnemy()
 {
 	TArray<AActor*> PerceivedActors;
     GetCurrentlyPerceivedActors(UAISense_Sight::StaticClass(), PerceivedActors);
+    GetCurrentlyPerceivedActors(UAISense_Hearing::StaticClass(), PerceivedActors);
     if (PerceivedActors.Num() == 0)
     {
         return nullptr;
@@ -35,6 +37,10 @@ AActor* UMyAIPerceptionComponent::GetEnemy()
     for (const auto OtherActor : PerceivedActors)
     {
         auto PerceivedCharacter = Cast<ACharacterBase>(OtherActor);
+        if (PerceivedCharacter == nullptr)
+        {
+            PerceivedCharacter = Cast<ACharacterBase>(OtherActor->GetOwner());
+        }
         if (PerceivedCharacter == nullptr || PerceivedCharacter->IsDead() || PerceivedCharacter->GetController() == nullptr)
         {
             continue;
@@ -55,7 +61,7 @@ AActor* UMyAIPerceptionComponent::GetEnemy()
         if (HealthComponent->GetValue() < LowestHealth)
         {
             LowestHealth = HealthComponent->GetValue();
-            BestEnemy = OtherActor;
+            BestEnemy = PerceivedCharacter;
         }
     }
 

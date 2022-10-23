@@ -24,9 +24,8 @@ protected:
 
 private:
 	class AAIControllerBase* Controller;
-	bool CurrentCoverRequiresCrouching = false;
-	FVector CurrentCoverOrientation = FVector(1.f, 0.f, 0.f);
 	FTimerHandle TimerHandle;
+	class APlaceToCover* Cover = nullptr;
 
 	UFUNCTION()
 	void OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result);
@@ -38,4 +37,5 @@ private:
 
 	void TimeInCoverExpired(bool Succeeded);
 	void TimeInCoverExpiredWithSuccess();
+	void RemoveDelegateFromDamageTakerComponent();
 };
