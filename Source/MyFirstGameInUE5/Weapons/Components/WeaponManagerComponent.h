@@ -42,7 +42,11 @@ public:
 	int32 GetCurrentWeaponSlot() const;
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
-	ABaseWeapon* GetCurrentWeapon() const;
+	ABaseWeapon* GetCurrentWeapon();
+	const ABaseWeapon* GetCurrentWeapon() const;
+
+	UFUNCTION(BlueprintCallable, Category = "Weapon")
+	ABaseWeapon* GetWeaponOfClass(TSubclassOf<ABaseWeapon> Class);
 
 	UFUNCTION(BlueprintCallable, Category = "Weapon")
 	void Reload();

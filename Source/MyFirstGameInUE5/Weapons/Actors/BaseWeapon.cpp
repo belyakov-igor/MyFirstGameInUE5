@@ -18,7 +18,7 @@ void ABaseWeapon::AttachToOwner(ACharacter* NewOwner)
 	check(Cast<ACharacter>(NewOwner) != nullptr);
 	check(RootComponent != nullptr);
 	SetOwner(NewOwner);
-	auto f = RootComponent->AttachToComponent(GetCharacterMesh(), AttachmentRules, HandGripSocketName);
+	RootComponent->AttachToComponent(GetCharacterMesh(), AttachmentRules, HandGripSocketName);
 }
 
 FWeaponUIData ABaseWeapon::GetUIData() const
@@ -112,12 +112,12 @@ FTransform ABaseWeapon::GetMuzzleSocketTransform() const
 	return WeaponMesh->GetSocketTransform(MuzzleSocketName);
 }
 
-TArray<uint8> ABaseWeapon::GetActorSaveData()
+TArray<uint8> ABaseWeapon::GetActorSaveData_Implementation()
 {
 	auto AmmoComponent = Cast<UAmmoComponent>(FindComponentByClass(UAmmoComponent::StaticClass()));
 	SavedClipAmount = AmmoComponent != nullptr ? AmmoComponent->GetClipAmount() : -1;
 	SavedArsenalAmount = AmmoComponent != nullptr ? AmmoComponent->GetArsenalAmount() : -1;
-	return ISavable::GetActorSaveData();
+	return ISavable::GetActorSaveData_Implementation();
 }
 
 void ABaseWeapon::BeginPlay()

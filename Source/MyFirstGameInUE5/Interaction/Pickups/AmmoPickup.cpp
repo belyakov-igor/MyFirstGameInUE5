@@ -6,12 +6,12 @@
 
 #include "GameFramework/Pawn.h"
 
-FText AAmmoPickup::FocusText()
+FText AAmmoPickup::FocusText_Implementation()
 {
 	return FText::Format(FTextFormat(NSLOCTEXT("Interaction", "PickAmmo", "Pick ammo for {0}: {1}")), WeaponName, Amount);
 }
 
-void AAmmoPickup::Interact(class APawn* Pawn)
+void AAmmoPickup::Interact_Implementation(class APawn* Pawn)
 {
 	TArray<UActorComponent*> WeaponManagerComponents;
 	Pawn->GetComponents(UWeaponManagerComponent::StaticClass(), WeaponManagerComponents);

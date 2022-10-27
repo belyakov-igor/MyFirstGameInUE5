@@ -29,6 +29,7 @@ void UInteractingComponent::Interact()
 {
 	if (ActorInFocus != nullptr)
 	{
+		check(ActorInFocus->bIsEnabled);
 		ActorInFocus->Interact(Cast<APawn>(GetOwner()));
 	}
 }
@@ -41,6 +42,10 @@ void UInteractingComponent::TickComponent(float DeltaTime, enum ELevelTick /*Tic
 	ActorInFocus = nullptr;
 	for (auto InteractableActor : InteractableActors)
 	{
+		if (!InteractableActor->bIsEnabled)
+		{
+			continue;
+		}
 		check(InteractableActor != nullptr);
 		float dot_ = FVector::DotProduct((InteractableActor->GetActorLocation() - GetOwner()->GetActorLocation()).GetSafeNormal(), GetForwardVector());
 		if (dot_ > dot)
@@ -50,14 +55,7 @@ void UInteractingComponent::TickComponent(float DeltaTime, enum ELevelTick /*Tic
 		}
 	}
 
-	if (ActorInFocus != nullptr)
-	{
-		ChangeHUDText.Broadcast(ActorInFocus->FocusText());
-	}
-	else
-	{
-		ChangeHUDText.Broadcast(FText::GetEmpty());
-	}
+	ChangeHUDText.Broadcast(ActorInFocus != nullptr ? ActorInFocus->FocusText() : FText::GetEmpty());
 
 	if (OldActorInFocus != ActorInFocus)
 	{

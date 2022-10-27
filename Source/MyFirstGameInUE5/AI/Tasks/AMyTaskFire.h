@@ -17,7 +17,11 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fire")
-	float MaxTimeForThisTask = 2.f;
+	float MaxTimeForThisTask = 4.f;
+
+	/** Character will not fire until this time expired */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fire")
+	float AimingTime = 1.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Fire")
 	int32 MaxShots = 20;

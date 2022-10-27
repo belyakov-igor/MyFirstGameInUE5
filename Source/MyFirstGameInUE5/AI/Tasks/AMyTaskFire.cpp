@@ -91,13 +91,15 @@ EBTNodeResult::Type UAMyTaskFire::Fire(UBehaviorTreeComponent& OwnerComp, uint8*
 	auto Data = GetCharacterData(OwnerComp);
 	auto Memory = reinterpret_cast<TNodeMemory*>(NodeMemory);
 
+
+
 	if (Data.Target == nullptr)
 	{
 		return EBTNodeResult::Failed;
 	}
 
 	Data.Controller->SetFocus(Data.Target);
-	if (Memory->TraceSucceeded)
+	if (Memory->TraceSucceeded && GetWorld()->GetTimeSeconds() - Memory->InitialTime > AimingTime)
 	{
 		Data.WeaponManagerComponent->BeginAttack();
 	}

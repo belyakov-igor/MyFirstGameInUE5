@@ -36,6 +36,8 @@ void UAISpawnAndOrderComponent::Spawn()
 		return;
 	}
 
+	Controller->GroupId = GroupId;
+
 	Controller->Possess(Character);
 
 	for (auto WeaponAndAmmo : WeaponAndAmmoArray)
@@ -73,7 +75,14 @@ void UAISpawnAndOrderComponent::ScheduleSpawn()
 	{
 		return;
 	}
-	GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UAISpawnAndOrderComponent::Spawn, SpawnDelay, false);
+	if (SpawnDelay == 0.f)
+	{
+		Spawn();
+	}
+	else
+	{
+		GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UAISpawnAndOrderComponent::Spawn, SpawnDelay, false);
+	}
 }
 
 float UAISpawnAndOrderComponent::GetSpawnDelayRemaining() const

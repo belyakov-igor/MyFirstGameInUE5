@@ -60,10 +60,16 @@ void UAMyServicePickEnemy::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* No
 			auto Location = Pawn->GetActorLocation();
 
 			TArray<AActor*> Actors;
-			UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAICharacter::StaticClass(), Actors);
+			UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAIControllerBase::StaticClass(), Actors);
 			for (auto Actor : Actors)
 			{
-				auto AICharacter = Cast<AAICharacter>(Actor);
+				auto AIController = Cast<AAIControllerBase>(Actor);
+				check(AIController != nullptr);
+				if (AIController->GroupId != Controller->GroupId)
+				{
+					continue;
+				}
+				auto AICharacter = AIController->GetPawn();
 				if (
 					AICharacter != nullptr
 					&& (AICharacter->GetActorLocation() - Location).SquaredLength() < MaxDistanceSquared

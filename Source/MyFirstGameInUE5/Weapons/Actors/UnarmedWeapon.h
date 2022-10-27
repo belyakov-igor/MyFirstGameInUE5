@@ -29,7 +29,7 @@ public:
 	float Damage = 10.f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
-	float PunchMomentum = 40000.f;
+	float PunchMomentum = 200000.f;
 
 	virtual void BeginAttack() override;
 

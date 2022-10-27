@@ -16,9 +16,14 @@ public:
 	AInteractableActor();
 
 	/** return text to display in HUD when this interactable is in focus */
-	virtual FText FocusText() { return FText::GetEmpty(); }
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, BlueprintPure, Category = "Interaction")
+	FText FocusText();
 
-	virtual void Interact(class APawn* Pawn) {};
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Interaction")
+	void Interact(class APawn* Pawn);
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interaction")
+	bool bIsEnabled = true;
 
 	UPROPERTY(BlueprintAssignable, Category = "Focus")
 	FSignalMulticastDynamicSignature FocusIn;
@@ -33,10 +38,18 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
 	class USphereComponent* PawnOverlapCollisionComponent = nullptr;
 
+	virtual FText FocusText_Implementation() { return FText::GetEmpty(); }
+	virtual void Interact_Implementation(class APawn* Pawn) {}
+
+	virtual void BeginPlay() override;
+
 public:
 	virtual void NotifyActorBeginOverlap(AActor* OtherActor) override;
 	virtual void NotifyActorEndOverlap(AActor* OtherActor) override;
 
 private:
 	class UInteractingComponent* FindInteractingComponent(AActor* Actor);
+	FTimerHandle TimerHandle;
+
+	void CheckOverlappingActors();
 };

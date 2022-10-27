@@ -13,9 +13,6 @@ class MYFIRSTGAMEINUE5_API AWeaponPickup : public AInteractableActor, public ISa
 	GENERATED_BODY()
 
 public:
-	virtual FText FocusText() override;
-	virtual void Interact(class APawn* Pawn) override;
-	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pickup")
 	TSubclassOf<class ABaseWeapon> WeaponClass = nullptr;
 
@@ -24,4 +21,8 @@ public:
 	
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Pickup", meta = (ClampMin = 0))
 	int32 AmmoAmount = 10;
+
+protected:
+	virtual void Interact_Implementation(class APawn* Pawn) override;
+	virtual FText FocusText_Implementation() override;
 };

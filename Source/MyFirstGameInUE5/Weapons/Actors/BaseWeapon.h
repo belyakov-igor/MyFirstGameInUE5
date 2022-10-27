@@ -79,7 +79,7 @@ public:
 	UPROPERTY(SaveGame)
 	int32 SavedArsenalAmount = -1;
 
-	virtual TArray<uint8> GetActorSaveData() override;
+	virtual TArray<uint8> GetActorSaveData_Implementation() override;
 
 protected:
 	virtual void BeginPlay() override;

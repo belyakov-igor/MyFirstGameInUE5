@@ -109,7 +109,11 @@ public:
 	float MinDistanceFromCoverToEnemy = 500.f;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
-	float MaxDistanceToAllyToTellItAboutEnemy = 5000.f;
+	float MaxDistanceToAllyToTellItAboutEnemy = 3000.f;
+
+	/** Guys with the same group id will share information about enemy between them*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (ClampMin = 0))
+	int32 GroupId = 0;
 
 	void SetOrderMoveTagetSequence(FMoveTargetSequenceTaskData MoveTargetSequenceTaskData);
 	FMoveTargetSequenceTaskData& GetMoveTargetSequenceTaskData() { return MoveTargetSequenceTaskData; }
@@ -118,7 +122,7 @@ public:
 	UPROPERTY(SaveGame)
 	FName SavedPossessedCharacterName = NAME_None;
 
-	virtual TArray<uint8> GetActorSaveData() override;
+	virtual TArray<uint8> GetActorSaveData_Implementation() override;
 
 protected:
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Components")

@@ -118,6 +118,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void RemoveTransformFromSaveGameForGlobalActor(FName GlobalActorName, FName LevelName);
 
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void SendPlayerToPlayerStart(FName LevelName, FName PlayerStartName);
+
 	// called from AMyGameModeBase::InitGame
 	void OnLevelLoaded();
 
@@ -145,6 +148,7 @@ private:
 
 	FString LoadGameImplSlot;
 	bool LoadGameImplNewGame = false;
+	bool LoadGameImplSendPlayer = false;
 	UFUNCTION() void LoadGameImpl();
 	UFUNCTION() void OnLoadingOverlayFadeOutAnimationFinished();
 

@@ -41,3 +41,20 @@ UInteractingComponent* AInteractableActor::FindInteractingComponent(AActor* Acto
 {
 	return Actor == nullptr ? nullptr : Cast<UInteractingComponent>(Actor->FindComponentByClass(UInteractingComponent::StaticClass()));
 }
+
+void AInteractableActor::BeginPlay()
+{
+	Super::BeginPlay();
+
+	GetWorldTimerManager().SetTimer(TimerHandle, this, &AInteractableActor::CheckOverlappingActors, 0.01, false);
+}
+
+void AInteractableActor::CheckOverlappingActors()
+{
+	TSet<AActor*> Actors;
+	PawnOverlapCollisionComponent->GetOverlappingActors(Actors);
+	for (auto Actor : Actors)
+	{
+		NotifyActorBeginOverlap(Actor);
+	}
+}

@@ -4,12 +4,12 @@
 
 #include "GameFramework/Pawn.h"
 
-FText AHealingPickup::FocusText()
+FText AHealingPickup::FocusText_Implementation()
 {
 	return FText::Format(FTextFormat(NSLOCTEXT("Interaction", "PickHealth", "Heal self by {0}")), Amount);
 }
 
-void AHealingPickup::Interact(class APawn* Pawn)
+void AHealingPickup::Interact_Implementation(class APawn* Pawn)
 {
 	auto HealthComponent = Cast<UClampedIntegerComponent>(Pawn->GetDefaultSubobjectByName(HealthComponentName));
 	if (HealthComponent == nullptr)

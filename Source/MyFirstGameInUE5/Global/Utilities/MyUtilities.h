@@ -105,6 +105,28 @@ struct FDateTimeAndString
 	FString String;
 };
 
+UINTERFACE(Blueprintable, MinimalAPI)
+class UTriggerable : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class ITriggerable
+{
+	GENERATED_BODY()
+
+public:
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Trigger")
+	void Trigger();
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Trigger")
+	bool CanBeTriggered();
+
+protected:
+	virtual void Trigger_Implementation() {}
+	virtual bool CanBeTriggered_Implementation() { return true; }
+};
+
 inline FName HealthComponentName = "HealthComponent";
 inline FName StaminaComponentName = "StaminaComponent";
 inline FName MeleeWeaponManagerComponentName = "MeleeWeaponManagerComponent";

@@ -13,9 +13,10 @@ class MYFIRSTGAMEINUE5_API AHealingPickup : public AInteractableActor, public IS
 	GENERATED_BODY()
 
 public:
-	virtual FText FocusText() override;
-	virtual void Interact(class APawn* Pawn) override;
-
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "Pickup", meta = (ClampMin = 1))
 	int32 Amount = 30;
+
+protected:
+	virtual void Interact_Implementation(class APawn* Pawn) override;
+	virtual FText FocusText_Implementation() override;
 };

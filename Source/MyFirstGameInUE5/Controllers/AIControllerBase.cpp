@@ -19,7 +19,7 @@ AAIControllerBase::AAIControllerBase()
     bWantsPlayerState = true;
 }
 
-TArray<uint8> AAIControllerBase::GetActorSaveData()
+TArray<uint8> AAIControllerBase::GetActorSaveData_Implementation()
 {
     SavedPossessedCharacterName = GetPawn()->GetFName();
 
@@ -39,7 +39,7 @@ TArray<uint8> AAIControllerBase::GetActorSaveData()
         SavedBlackboardKeys.bGotShotByUnknownEnemy = Blackboard->GetValueAsBool(GotShotByUnknownEnemyKeyName);
     }
 
-    return ISavable::GetActorSaveData();
+    return ISavable::GetActorSaveData_Implementation();
 }
 
 void AAIControllerBase::BeginPlay()

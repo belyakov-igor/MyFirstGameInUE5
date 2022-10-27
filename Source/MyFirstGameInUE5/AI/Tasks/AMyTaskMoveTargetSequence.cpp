@@ -49,8 +49,14 @@ EBTNodeResult::Type UAMyTaskMoveTargetSequence::Move(UBehaviorTreeComponent& Own
 			return EBTNodeResult::Succeeded;
 		}
 	}
+	if (
+		Controller->MoveToLocation(Sequence[SequenceData.CurrentMoveTargetIndex].Position)
+		== EPathFollowingRequestResult::Type::AlreadyAtGoal
+	)
+	{
+		return EBTNodeResult::Succeeded;
+	}
 	Controller->ReceiveMoveCompleted.AddDynamic(this, &UAMyTaskMoveTargetSequence::OnMoveCompleted);
-	Controller->MoveToLocation(Sequence[SequenceData.CurrentMoveTargetIndex].Position);
 	return EBTNodeResult::InProgress;
 }
 

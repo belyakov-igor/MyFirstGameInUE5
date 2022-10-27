@@ -9,12 +9,11 @@ AAISpawnAndOrderActor::AAISpawnAndOrderActor()
 {
 	PrimaryActorTick.bCanEverTick = false;
 
-	SpawnTriggerComponent = CreateDefaultSubobject<UBoxComponent>("SpawnTriggerComponent");
-	SetRootComponent(SpawnTriggerComponent);
-	SpawnTriggerComponent->InitBoxExtent(FVector(100.f));
+	RootScene = CreateDefaultSubobject<USceneComponent>("RootScene");
+	SetRootComponent(RootScene);
 }
 
-TArray<uint8> AAISpawnAndOrderActor::GetActorSaveData()
+TArray<uint8> AAISpawnAndOrderActor::GetActorSaveData_Implementation()
 {
 	if (bAlreadyTriggered)
 	{
@@ -31,7 +30,7 @@ TArray<uint8> AAISpawnAndOrderActor::GetActorSaveData()
 			}
 		}
 	}
-	return ISavable::GetActorSaveData();
+	return ISavable::GetActorSaveData_Implementation();
 }
 
 void AAISpawnAndOrderActor::BeginPlay()
@@ -42,7 +41,11 @@ void AAISpawnAndOrderActor::BeginPlay()
 	{
 		TArray<UActorComponent*> SOComponents;
 		GetComponents(UAISpawnAndOrderComponent::StaticClass(), SOComponents);
-		check(SavedSpawnDelays.Num() == SOComponents.Num());
+		if (SavedSpawnDelays.Num() != SOComponents.Num())
+		{
+			check(SavedSpawnDelays.Num() == 0); // no save data available
+			return;
+		}
 		for (int32 i = 0; i != SOComponents.Num(); ++i)
 		{
 			auto SOComponent = Cast<UAISpawnAndOrderComponent>(SOComponents[i]);
@@ -55,22 +58,14 @@ void AAISpawnAndOrderActor::BeginPlay()
 	}
 }
 
-void AAISpawnAndOrderActor::NotifyActorBeginOverlap(AActor* OtherActor)
+void AAISpawnAndOrderActor::Spawn()
 {
-	if (
-		auto Pawn = Cast<APawn>(OtherActor);
-		bAlreadyTriggered || Pawn == nullptr || !Pawn->IsPlayerControlled()
-	)
+	if (bAlreadyTriggered)
 	{
 		return;
 	}
 	bAlreadyTriggered = true;
 
-	Spawn();
-}
-
-void AAISpawnAndOrderActor::Spawn()
-{
 	TArray<UActorComponent*> SOComponents;
 	GetComponents(UAISpawnAndOrderComponent::StaticClass(), SOComponents);
 	for (auto Component : SOComponents)

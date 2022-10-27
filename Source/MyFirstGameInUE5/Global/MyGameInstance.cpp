@@ -9,6 +9,7 @@
 #include "Components/AudioComponent.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Sound/SoundClass.h"
+#include "GameFramework/PlayerStart.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMyGameInstance, All, All);
 
@@ -161,6 +162,7 @@ void UMyGameInstance::StartNewGame()
 	}
 	StopMusic();
 	LoadGameImplNewGame = true;
+	LoadGameImplSendPlayer = false;
 	LoadingOverlayWidget->AddToViewport();
 	LoadingOverlayWidget->PlayFadeInAnimation();
 }
@@ -275,6 +277,7 @@ void UMyGameInstance::LoadGame(const FString& Slot)
 	StopMusic();
 	LoadGameImplSlot = Slot;
 	LoadGameImplNewGame = false;
+	LoadGameImplSendPlayer = false;
 	if (LoadingOverlayWidget->GetParent() == nullptr)
 	{
 		LoadingOverlayWidget->AddToViewport();
@@ -290,6 +293,10 @@ void UMyGameInstance::LoadGameImpl()
 		UGameplayStatics::OpenLevel(GetWorld(), StartLevelName);
 		LoadingOverlayWidget->StopAllAnimations();
 		LoadingOverlayWidget->PlayFadeOutAnimation();
+	}
+	else if (LoadGameImplSendPlayer)
+	{
+		UGameplayStatics::OpenLevel(GetWorld(), CurrentSave->CurrentLevelName);
 	}
 	else
 	{
@@ -380,7 +387,7 @@ void UMyGameInstance::OnGameLoadedNonMulticastTriggered(const FString& RealSlotN
 		return;
 	}
 	CurrentSave = MySaveGame;
-	UGameplayStatics::OpenLevel(GetWorld(), MySaveGame->CurrentLevelName);
+	UGameplayStatics::OpenLevel(GetWorld(), CurrentSave->CurrentLevelName);
 }
 
 class UMySaveGame* UMyGameInstance::InitNewGameSaveObject()
@@ -416,4 +423,52 @@ void UMyGameInstance::RemoveTransformFromSaveGameForGlobalActor(FName GlobalActo
 	{
 		GlobalActorSaveData->Transforms.Remove(LevelName);
 	}
+}
+
+void UMyGameInstance::SendPlayerToPlayerStart(FName LevelName, FName PlayerStartName)
+{
+	if (GetWorld() == nullptr || LoadingOverlayWidget == nullptr)
+	{
+		return;
+	}
+
+	auto Character = Cast<APlayerCharacter>(UGameplayStatics::GetActorOfClass(GetWorld(), APlayerCharacter::StaticClass()));
+	if (Character == nullptr)
+	{
+		return;
+	}
+
+	if (LevelName.ToString() == UGameplayStatics::GetCurrentLevelName(GetWorld()))
+	{
+		TArray<AActor*> Actors;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), Actors);
+		AActor** ActorPtr = Actors.FindByPredicate(
+			[PlayerStartName](const AActor* Actor){ return Actor->GetFName() == PlayerStartName; }
+		);
+		if (ActorPtr == nullptr || *ActorPtr == nullptr)
+		{
+			return;
+		}
+
+		Character->SetActorTransform((*ActorPtr)->GetActorTransform());
+		return;
+	}
+
+	auto PlayerController = Cast<APlayerController>(Character->GetController());
+	if (PlayerController == nullptr)
+	{
+		return;
+	}
+
+	GetWorld()->GetAuthGameMode()->SetPause(PlayerController);
+	LoadingOverlayWidget->AddToViewport();
+
+	CurrentSave->CurrentLevelName = LevelName;
+	RemoveTransformFromSaveGameForGlobalActor(Character->GetFName(), LevelName);
+	Character->DesiredPlayerStartNames.FindOrAdd(LevelName) = PlayerStartName;
+
+	LoadGameImplNewGame = false;
+	LoadGameImplSendPlayer = true;
+
+	LoadingOverlayWidget->PlayFadeInAnimation();
 }

@@ -47,6 +47,11 @@ void APlayerCharacter::BeginPlay()
 
 	Super::BeginPlay();
 
+	if (bDefaultTransformIsUsed && GetController() != nullptr)
+	{
+		GetController()->SetControlRotation(GetActorRotation());
+	}
+
 	if (HUDWidget != nullptr)
 	{
 		HUDWidget->UpdateWeaponAndAmmo();
@@ -326,22 +331,24 @@ void APlayerCharacter::OnHealthChanged(FName BoneName, float Damage)
 	PlayerController->PlayerCameraManager->StartCameraShake(CameraShake);
 }
 
-FTransform APlayerCharacter::GetDefaultTansform() const
+void APlayerCharacter::SetDefaultTansform()
 {
+	bDefaultTransformIsUsed = true;
+
 	TArray<AActor*> Actors;
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), Actors);
-	auto Default = [&Actors]{ return Actors.IsEmpty() ? FTransform{} : Actors[0]->GetActorTransform(); };
+	auto SetDefault = [this, &Actors]{ SetActorTransform(Actors.IsEmpty() ? FTransform{} : Actors[0]->GetActorTransform()); };
 
 	auto DesiredPlayerStartName = DesiredPlayerStartNames.Find(FName(UGameplayStatics::GetCurrentLevelName(GetWorld())));
 	if (DesiredPlayerStartName == nullptr)
 	{
-		return Default();
+		return SetDefault();
 	}
 
 	AActor** ActorPtr = Actors.FindByPredicate([DesiredPlayerStartName](const AActor* Actor){ return Actor->GetFName() == *DesiredPlayerStartName; });
 	if (ActorPtr == nullptr)
 	{
-		return Default();
+		return SetDefault();
 	}
 	else
 	{
@@ -349,11 +356,12 @@ FTransform APlayerCharacter::GetDefaultTansform() const
 		if (PlayerStart == nullptr)
 		{
 			check(false);
-			return Default();
+			return SetDefault();
 		}
 		else
 		{
-			return PlayerStart->GetActorTransform();
+			const auto& Transform = PlayerStart->GetActorTransform();
+			SetActorTransform(Transform);
 		}
 	}
 }

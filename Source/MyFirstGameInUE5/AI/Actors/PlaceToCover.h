@@ -14,7 +14,7 @@ public:
 	APlaceToCover();
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Components")
-	class USceneComponent* CoverPosition;
+	class UArrowComponent* CoverPosition;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Cover")
 	bool NeedToCrouch = false;

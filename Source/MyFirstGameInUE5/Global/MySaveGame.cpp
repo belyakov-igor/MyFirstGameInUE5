@@ -4,7 +4,7 @@
 #include "EngineUtils.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
-TArray<uint8> ISavable::GetActorSaveData()
+TArray<uint8> ISavable::GetActorSaveData_Implementation()
 {
 	auto Actor = Cast<AActor>(this);
 	check(Actor != nullptr);
@@ -17,7 +17,7 @@ TArray<uint8> ISavable::GetActorSaveData()
 	return Data;
 }
 
-void ISavable::ApplyActorSaveData(const TArray<uint8>& Data)
+void ISavable::ApplyActorSaveData_Implementation(const TArray<uint8>& Data)
 {
 	auto Actor = Cast<AActor>(this);
 	check(Actor != nullptr);
@@ -55,14 +55,14 @@ void UMySaveGame::Update(UWorld* World)
 			auto& GlobalActorSaveData = GlobalActorSaveDatas.FindOrAdd(Actor->GetFName());
 			GlobalActorSaveData.Transforms.FindOrAdd(CurrentLevelName) = Actor->GetActorTransform();
 			GlobalActorSaveData.Class = Actor->GetClass();
-			GlobalActorSaveData.Data = Savable->GetActorSaveData();
+			GlobalActorSaveData.Data = ISavable::Execute_GetActorSaveData(Actor);
 		}
 		else
 		{
 			FActorSaveData ActorSaveData;
 			ActorSaveData.Transform = Actor->GetActorTransform();
 			ActorSaveData.Class = Actor->GetClass();
-			ActorSaveData.Data = Savable->GetActorSaveData();
+			ActorSaveData.Data = ISavable::Execute_GetActorSaveData(Actor);
 			LevelSaveData.ActorSaveDatas.Add(Actor->GetFName(), std::move(ActorSaveData));
 		}
 	}
@@ -91,9 +91,16 @@ void UMySaveGame::Apply(UWorld* World) const
 			auto GlobalActorSaveData = GlobalActorSaveDatas.Find(Actor->GetFName());
 			if (GlobalActorSaveData != nullptr)
 			{
+				ISavable::Execute_ApplyActorSaveData(Actor, GlobalActorSaveData->Data);
 				auto Transform = GlobalActorSaveData->Transforms.Find(CurrentLevelName);
-				Actor->SetActorTransform(Transform != nullptr ? *Transform : Savable->GetDefaultTansform());
-				Savable->ApplyActorSaveData(GlobalActorSaveData->Data);
+				if (Transform != nullptr)
+				{
+					Actor->SetActorTransform(*Transform);
+				}
+				else
+				{
+					Savable->SetDefaultTansform();
+				}
 				ProcessedActorNames.Add(Actor->GetFName());
 			}
 			else
@@ -106,8 +113,8 @@ void UMySaveGame::Apply(UWorld* World) const
 			const FActorSaveData* ActorSaveData = LevelSaveData->ActorSaveDatas.Find(Actor->GetFName());
 			if (ActorSaveData != nullptr)
 			{
+				ISavable::Execute_ApplyActorSaveData(Actor, ActorSaveData->Data);
 				Actor->SetActorTransform(ActorSaveData->Transform);
-				Savable->ApplyActorSaveData(ActorSaveData->Data);
 				ProcessedActorNames.Add(Actor->GetFName());
 			}
 			else
@@ -126,11 +133,11 @@ void UMySaveGame::Apply(UWorld* World) const
 		auto Actor = World->SpawnActor(Class, Transform, Parameters);
 		auto Savable = Cast<ISavable>(Actor);
 		check(Savable != nullptr);
-		if (Savable != nullptr && Transform == nullptr)
+		ISavable::Execute_ApplyActorSaveData(Actor, Data);
+		if (Transform == nullptr)
 		{
-			Actor->SetActorTransform(Savable->GetDefaultTansform());
+			Savable->SetDefaultTansform();
 		}
-		Savable->ApplyActorSaveData(Data);
 	};
 	for (const auto& Pair : GlobalActorSaveDatas)
 	{

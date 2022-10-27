@@ -18,7 +18,7 @@ public:
 
 	virtual void Tick(float DeltaTime) override;
 
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, SaveGame, Category = "Components")
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
 	class UClampedIntegerComponent* HealthComponent;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Components")
@@ -61,7 +61,7 @@ public:
 	float AimToNoAimTransitionTime = 0.3f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
-	FVector2D LandingVelocityDamageRange{900.f, 1500.f};
+	FVector2D LandingVelocityDamageRange{800.f, 1200.f};
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
 	float HeadShotDamageMultiplier = 2.f;
@@ -74,7 +74,7 @@ public:
 	FName HeadBoneName = "head";
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Damage")
-	FVector2D LandingDamageRange{10.f, 100.f};
+	FVector2D LandingDamageRange{20.f, 200.f};
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "Attack")
 	TSubclassOf<class ABaseWeapon> DefaultMeleeWeaponClass = nullptr;
@@ -146,12 +146,15 @@ public:
 	int32 SavedHealth = -1; // negative means default
 
 	UPROPERTY(SaveGame)
+	int32 SavedStamina = -1; // negative means default
+
+	UPROPERTY(SaveGame)
 	TArray<uint8> SavedRangedWeaponData;
 
 	UPROPERTY(SaveGame)
 	bool SavedIsCrouching = false;
 
-	virtual TArray<uint8> GetActorSaveData() override;
+	virtual TArray<uint8> GetActorSaveData_Implementation() override;
 
 protected:
 	virtual void BeginPlay() override;

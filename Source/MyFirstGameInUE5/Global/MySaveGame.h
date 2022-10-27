@@ -90,8 +90,23 @@ class ISavable
 public:
 	virtual bool IsGlobal() const { return false; }
 	virtual bool NoNeedToSaveThisOne() const { return false; }
-	virtual FTransform GetDefaultTansform() const { return FTransform{}; }
 
-	virtual TArray<uint8> GetActorSaveData();
-	virtual void ApplyActorSaveData(const TArray<uint8>& Data);
+	virtual void SetDefaultTansform() {}
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Save")
+	TArray<uint8> GetActorSaveData();
+
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Save")
+	void ApplyActorSaveData(const TArray<uint8>& Data);
+
+
+	virtual TArray<uint8> GetActorSaveData_Implementation();
+	virtual void ApplyActorSaveData_Implementation(const TArray<uint8>& Data);
+};
+
+
+UCLASS()
+class MYFIRSTGAMEINUE5_API ASavableActor : public AActor, public ISavable
+{
+	GENERATED_BODY()
 };

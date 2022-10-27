@@ -49,10 +49,10 @@ public:
 
 	virtual void OnWeaponAndAmmoChanged() override;
 
+	// Game saving
 	virtual bool IsGlobal() const override { return true; }
-	virtual FTransform GetDefaultTansform() const override;
+	virtual void SetDefaultTansform() override;
 
-	// Properties for game saving
 	UPROPERTY(SaveGame)
 	TMap<FName /*Level name*/, FName> DesiredPlayerStartNames;
 
@@ -117,4 +117,6 @@ private:
 
 	UFUNCTION()
 	void OnHealthChanged(FName BoneName, float Damage);
+
+	bool bDefaultTransformIsUsed = false;
 };

@@ -137,9 +137,26 @@ int32 UWeaponManagerComponent::GetCurrentWeaponSlot() const
 	return CurrentWeaponSlot;
 }
 
-ABaseWeapon* UWeaponManagerComponent::GetCurrentWeapon() const
+const ABaseWeapon* UWeaponManagerComponent::GetCurrentWeapon() const
+{
+	return const_cast<UWeaponManagerComponent*>(this)->GetCurrentWeapon();
+}
+
+ABaseWeapon* UWeaponManagerComponent::GetCurrentWeapon()
 {
 	return Weapons[CurrentWeaponSlot];
+}
+
+ABaseWeapon* UWeaponManagerComponent::GetWeaponOfClass(TSubclassOf<ABaseWeapon> Class)
+{
+	for (auto Weapon : Weapons)
+	{
+		if (Weapon != nullptr && Weapon->GetClass() == Class)
+		{
+			return Weapon;
+		}
+	}
+	return nullptr;
 }
 
 void UWeaponManagerComponent::Reload()

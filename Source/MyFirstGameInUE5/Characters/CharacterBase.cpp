@@ -42,13 +42,14 @@ ACharacterBase::ACharacterBase()
 	SetAimState(State_Aim_NoAim);
 }
 
-TArray<uint8> ACharacterBase::GetActorSaveData()
+TArray<uint8> ACharacterBase::GetActorSaveData_Implementation()
 {
 	SavedControlRotation = GetControlRotation();
 	SavedHealth = HealthComponent->GetValue();
+	SavedStamina = StaminaComponent->GetValue();
 	SavedRangedWeaponData = RangedWeaponManagerComponent->GetSerializedData();
 	SavedIsCrouching = CrouchCoef > 0.f;
-	return ISavable::GetActorSaveData();
+	return ISavable::GetActorSaveData_Implementation();
 }
 
 void ACharacterBase::BeginPlay()
@@ -97,6 +98,10 @@ void ACharacterBase::BeginPlay()
 	if (SavedHealth >= 0)
 	{
 		HealthComponent->SetValue(SavedHealth);
+	}
+	if (SavedStamina >= 0)
+	{
+		StaminaComponent->SetValue(SavedStamina);
 	}
 	if (SavedIsCrouching)
 	{
