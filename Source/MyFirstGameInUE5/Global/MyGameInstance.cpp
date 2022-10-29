@@ -405,24 +405,10 @@ class UMySaveGame* UMyGameInstance::InitNewGameSaveObject()
 
 void UMyGameInstance::RemoveTransformFromSaveGameForGlobalActor(FName GlobalActorName, FName LevelName)
 {
-	if (CurrentSave == nullptr)
-	{
-		check(false);
-		return;
-	}
-
+	check(CurrentSave != nullptr);
 	auto GlobalActorSaveData = CurrentSave->GlobalActorSaveDatas.Find(GlobalActorName);
-	if (GlobalActorSaveData == nullptr)
-	{
-		check(false);
-		return;
-	}
-
-	auto Transform = GlobalActorSaveData->Transforms.Find(LevelName);
-	if (Transform != nullptr)
-	{
-		GlobalActorSaveData->Transforms.Remove(LevelName);
-	}
+	check(GlobalActorSaveData != nullptr);
+	GlobalActorSaveData->Transforms.Remove(LevelName);
 }
 
 void UMyGameInstance::SendPlayerToPlayerStart(FName LevelName, FName PlayerStartName)
@@ -463,9 +449,10 @@ void UMyGameInstance::SendPlayerToPlayerStart(FName LevelName, FName PlayerStart
 	GetWorld()->GetAuthGameMode()->SetPause(PlayerController);
 	LoadingOverlayWidget->AddToViewport();
 
-	CurrentSave->CurrentLevelName = LevelName;
 	RemoveTransformFromSaveGameForGlobalActor(Character->GetFName(), LevelName);
 	Character->DesiredPlayerStartNames.FindOrAdd(LevelName) = PlayerStartName;
+	CurrentSave->Update(GetWorld());
+	CurrentSave->CurrentLevelName = LevelName;
 
 	LoadGameImplNewGame = false;
 	LoadGameImplSendPlayer = true;

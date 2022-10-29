@@ -5,6 +5,7 @@
 #include "Utilities/Components/ClampedIntegerComponent.h"
 #include "Utilities/Components/DamageTakerComponent.h"
 #include "Weapons/Components/WeaponManagerComponent.h"
+#include "Global/MyGameInstance.h"
 
 #include "GameFramework/SpringArmComponent.h"
 #include "GameFramework/PlayerController.h"
@@ -339,13 +340,18 @@ void APlayerCharacter::SetDefaultTansform()
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), APlayerStart::StaticClass(), Actors);
 	auto SetDefault = [this, &Actors]{ SetActorTransform(Actors.IsEmpty() ? FTransform{} : Actors[0]->GetActorTransform()); };
 
-	auto DesiredPlayerStartName = DesiredPlayerStartNames.Find(FName(UGameplayStatics::GetCurrentLevelName(GetWorld())));
-	if (DesiredPlayerStartName == nullptr)
-	{
-		return SetDefault();
-	}
+	auto DesiredPlayerStartNamePtr = DesiredPlayerStartNames.Find(FName(UGameplayStatics::GetCurrentLevelName(GetWorld())));
+	auto DesiredPlayerStartName =
+		DesiredPlayerStartNamePtr == nullptr
+		? UMyGameInstance::GetMyGameInstance(GetWorld())->StartLevelPlayerStartName
+		: *DesiredPlayerStartNamePtr
+	;
 
-	AActor** ActorPtr = Actors.FindByPredicate([DesiredPlayerStartName](const AActor* Actor){ return Actor->GetFName() == *DesiredPlayerStartName; });
+	AActor** ActorPtr =
+		Actors.FindByPredicate(
+			[DesiredPlayerStartName](const AActor* Actor){ return Actor->GetFName() == DesiredPlayerStartName; }
+		)
+	;
 	if (ActorPtr == nullptr)
 	{
 		return SetDefault();

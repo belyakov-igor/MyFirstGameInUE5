@@ -29,7 +29,22 @@ void UEnvQueryTest_TraceToEnemyActor::RunTest(FEnvQueryInstance& QueryInstance) 
 	}
 	for (FEnvQueryInstance::ItemIterator It(this, QueryInstance); It; ++It)
 	{
-		const FVector ItemAimingLocation = GetItemLocation(QueryInstance, It.GetIndex());
+		FVector ItemAimingLocation = GetItemLocation(QueryInstance, It.GetIndex()) + FVector(0.f, 0.f, 10.f);
+		FHitResult HitResult;
+		bool bHit = GetWorld()->LineTraceSingleByChannel(
+			HitResult
+			, ItemAimingLocation
+			, ItemAimingLocation - FVector(0.f, 0.f, 5 * HeightOfTraceStart)
+			, ECC_Visibility
+			, TraceParams
+		);
+		if (!bHit)
+		{
+			check(false);
+			It.SetScore(TestPurpose, FilterType, false, bWantsHit);
+			continue;
+		}
+		ItemAimingLocation = HitResult.ImpactPoint + FVector(0.f, 0.f, HeightOfTraceStart);
 		for (auto Actor : Actors)
 		{
 			const auto TargetCharacter = Cast<ACharacterBase>(Actor);
@@ -37,8 +52,7 @@ void UEnvQueryTest_TraceToEnemyActor::RunTest(FEnvQueryInstance& QueryInstance) 
 			{
 				continue;
 			}
-			FHitResult HitResult;
-			const bool bHit = GetWorld()->LineTraceSingleByChannel(
+			bHit = GetWorld()->LineTraceSingleByChannel(
 				HitResult
 				, ItemAimingLocation
 				, TargetCharacter->GetActorLocation()

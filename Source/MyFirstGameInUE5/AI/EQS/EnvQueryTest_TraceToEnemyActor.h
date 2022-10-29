@@ -16,6 +16,9 @@ public:
 	virtual void RunTest(FEnvQueryInstance& QueryInstance) const override;
 
 	/** context: other end of trace test */
-	UPROPERTY(EditDefaultsOnly, Category=Trace)
+	UPROPERTY(EditDefaultsOnly, Category = "Trace")
 	TSubclassOf<UEnvQueryContext> Context;
+
+	UPROPERTY(EditDefaultsOnly, Category = "Trace")
+	float HeightOfTraceStart = 0.f;
 };

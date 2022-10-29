@@ -77,6 +77,9 @@ public:
 	FName StartLevelName = NAME_None;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
+	FName StartLevelPlayerStartName = NAME_None;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
 	FName MainMenuLevelName = NAME_None;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")

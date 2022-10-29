@@ -88,7 +88,7 @@ class ISavable
 	GENERATED_BODY()
 
 public:
-	virtual bool IsGlobal() const { return false; }
+	virtual bool IsGlobal() const;
 	virtual bool NoNeedToSaveThisOne() const { return false; }
 
 	virtual void SetDefaultTansform() {}

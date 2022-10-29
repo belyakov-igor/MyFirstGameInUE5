@@ -4,6 +4,28 @@
 #include "EngineUtils.h"
 #include "Serialization/ObjectAndNameAsStringProxyArchive.h"
 
+bool ISavable::IsGlobal() const
+{
+	auto Actor = Cast<AActor>(this);
+	if (Actor == nullptr)
+	{
+		return false;
+	}
+	while ((Actor = Actor->GetOwner()) != nullptr)
+	{
+		auto Savable = Cast<ISavable>(Actor);
+		if (Savable == nullptr)
+		{
+			continue;
+		}
+		if (Savable->IsGlobal())
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 TArray<uint8> ISavable::GetActorSaveData_Implementation()
 {
 	auto Actor = Cast<AActor>(this);
