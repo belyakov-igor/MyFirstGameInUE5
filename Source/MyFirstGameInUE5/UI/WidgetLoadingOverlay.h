@@ -33,6 +33,5 @@ protected:
 
 	UPROPERTY(meta = (BindWidgetAnim), Transient)
 	UWidgetAnimation* FadeOutAnimation = nullptr;
-
 	virtual void OnAnimationFinished_Implementation(const UWidgetAnimation* Animation) override;
 };

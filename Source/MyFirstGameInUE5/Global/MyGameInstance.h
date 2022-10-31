@@ -89,7 +89,16 @@ public:
 	TSubclassOf<class UWidgetLoadingOverlay> LoadingOverlayWidgetClass;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
+	TSubclassOf<class UWidgetLoadingOverlay> GameOverOverlayWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
+	TSubclassOf<class UWidgetLoadingOverlay> BlackScreenOverlayWidgetClass;
+
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
 	TSubclassOf<class APlayerCharacter> PlayerCharacterClass;
+
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void PauseGame(bool Pause);
 
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void StartNewGame();
@@ -124,8 +133,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void SendPlayerToPlayerStart(FName LevelName, FName PlayerStartName);
 
+	UFUNCTION(BlueprintCallable, Category = "Game")
+	void GameOver();
+
 	// called from AMyGameModeBase::InitGame
 	void OnLevelLoaded();
+	void OnMainMenuLoaded();
 
 	FSignalMulticastSignature OnSavingGameStarted;
 	FAsyncSaveGameToSlotMulticastDelegate OnSavingGameFinished;
@@ -149,14 +162,31 @@ private:
 	UPROPERTY()
 	class UMySaveGame* CurrentSave = nullptr;
 
+	enum class ELoadingOverlayCallbackType { NewGame, LoadGame, SendPlayerToAnotherLevel, Invalid };
+	ELoadingOverlayCallbackType LoadingOverlayCallbackType = ELoadingOverlayCallbackType::Invalid;
+
 	FString LoadGameImplSlot;
-	bool LoadGameImplNewGame = false;
-	bool LoadGameImplSendPlayer = false;
-	UFUNCTION() void LoadGameImpl();
+
+	enum class EMainMenuTransitionOverlayType { Regular, GameOver, Invalid };
+	EMainMenuTransitionOverlayType MainMenuTransitionOverlayType = EMainMenuTransitionOverlayType::Invalid;
+
+	UFUNCTION() void OnLoadingOverlayFadeInAnimationFinished();
 	UFUNCTION() void OnLoadingOverlayFadeOutAnimationFinished();
+	UFUNCTION() void OnGameOverOverlayFadeInAnimationFinished();
+	UFUNCTION() void OnGameOverOverlayFadeOutAnimationFinished();
+	UFUNCTION() void OnBlackScreenOverlayFadeInAnimationFinished();
+	UFUNCTION() void OnBlackScreenOverlayFadeOutAnimationFinished();
+
+	void QuitToMainMenuImpl(bool IsGameOver);
 
 	UPROPERTY()
 	UWidgetLoadingOverlay* LoadingOverlayWidget = nullptr;
+
+	UPROPERTY()
+	UWidgetLoadingOverlay* GameOverOverlayWidget = nullptr;
+
+	UPROPERTY()
+	UWidgetLoadingOverlay* BlackScreenOverlayWidget = nullptr;
 
 	class UMySaveGame* InitNewGameSaveObject();
 };

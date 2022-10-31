@@ -7,6 +7,6 @@ APlaceToCover::APlaceToCover()
 	PrimaryActorTick.bCanEverTick = false;
 
 	CoverPosition = CreateDefaultSubobject<UArrowComponent>("CoverPosition");
-	CoverPosition->ArrowColor == FColor::Blue;
+	CoverPosition->ArrowColor = FColor::Blue;
 	SetRootComponent(CoverPosition);
 }

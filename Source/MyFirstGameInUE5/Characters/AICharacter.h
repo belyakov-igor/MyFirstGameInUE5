@@ -18,4 +18,7 @@ public:
 
 protected:
 	virtual void Die() override;
+
+private:
+	bool IsThereAnotherLivingCharacterOfTheSameGroup() const;
 };

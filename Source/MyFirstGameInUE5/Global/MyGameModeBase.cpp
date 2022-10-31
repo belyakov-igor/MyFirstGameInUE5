@@ -12,5 +12,16 @@ AMyGameModeBase::AMyGameModeBase()
 void AMyGameModeBase::InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage)
 {
 	Super::InitGame(MapName, Options, ErrorMessage);
-	UMyGameInstance::GetMyGameInstance(this)->OnLevelLoaded();
+	auto MyGameInstance = UMyGameInstance::GetMyGameInstance(this);
+	if (
+		FName(   UGameplayStatics::GetCurrentLevelName( MyGameInstance->GetWorld() )   )
+		== MyGameInstance->MainMenuLevelName
+	)
+	{
+		MyGameInstance->OnMainMenuLoaded();
+	}
+	else
+	{
+		MyGameInstance->OnLevelLoaded();
+	}
 }

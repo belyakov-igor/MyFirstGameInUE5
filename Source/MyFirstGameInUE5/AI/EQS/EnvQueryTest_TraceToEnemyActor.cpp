@@ -29,7 +29,7 @@ void UEnvQueryTest_TraceToEnemyActor::RunTest(FEnvQueryInstance& QueryInstance) 
 	}
 	for (FEnvQueryInstance::ItemIterator It(this, QueryInstance); It; ++It)
 	{
-		FVector ItemAimingLocation = GetItemLocation(QueryInstance, It.GetIndex()) + FVector(0.f, 0.f, 10.f);
+		FVector ItemAimingLocation = GetItemLocation(QueryInstance, It.GetIndex()) + FVector(0.f, 0.f, HeightOfTraceStart);
 		FHitResult HitResult;
 		bool bHit = GetWorld()->LineTraceSingleByChannel(
 			HitResult

@@ -5,6 +5,8 @@
 #include "Sound/SoundCue.h"
 #include "Kismet/GameplayStatics.h"
 
+#include "Components/TextBlock.h"
+
 void UWidgetLoadingOverlay::PlayFadeInAnimation()
 {
 	PlayAnimation(FadeInAnimation);

@@ -33,6 +33,12 @@ TArray<uint8> AAISpawnAndOrderActor::GetActorSaveData_Implementation()
 	return ISavable::GetActorSaveData_Implementation();
 }
 
+void AAISpawnAndOrderActor::Trigger_Implementation()
+{
+	Triggered.Broadcast();
+	Spawn();
+}
+
 void AAISpawnAndOrderActor::BeginPlay()
 {
 	Super::BeginPlay();

@@ -17,7 +17,10 @@ public:
 	AAISpawnAndOrderActor();
 
 	UFUNCTION(BlueprintCallable, Category = "Spawn")
-	virtual void Trigger_Implementation() override { Spawn(); }
+	virtual void Trigger_Implementation() override;
+
+	UPROPERTY(BlueprintAssignable, Category = "Signal")
+	FSignalMulticastDynamicSignature Triggered;
 
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")

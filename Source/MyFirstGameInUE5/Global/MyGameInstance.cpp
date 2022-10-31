@@ -5,6 +5,7 @@
 #include "Global/MyGameModeBase.h"
 #include "UI/WidgetLoadingOverlay.h"
 #include "Characters/PlayerCharacter.h"
+#include "Controllers/PlayerControllerBase.h"
 
 #include "Components/AudioComponent.h"
 #include "GameFramework/GameUserSettings.h"
@@ -34,19 +35,41 @@ void UMyGameInstance::UMyGameInstance::Init()
 	if (LoadingOverlayWidgetClass != nullptr)
 	{
 		LoadingOverlayWidget = CreateWidget<UWidgetLoadingOverlay>(this, LoadingOverlayWidgetClass, "LoadingOverlay");
-		LoadingOverlayWidget->FadeInAnimationFinished.AddDynamic(this, &UMyGameInstance::LoadGameImpl);
+		LoadingOverlayWidget->FadeInAnimationFinished.AddDynamic(this, &UMyGameInstance::OnLoadingOverlayFadeInAnimationFinished);
 		LoadingOverlayWidget->FadeOutAnimationFinished.AddDynamic(this, &UMyGameInstance::OnLoadingOverlayFadeOutAnimationFinished);
+	}
+	if (GameOverOverlayWidgetClass != nullptr)
+	{
+		GameOverOverlayWidget = CreateWidget<UWidgetLoadingOverlay>(this, GameOverOverlayWidgetClass, "GameOverOverlay");
+		GameOverOverlayWidget->FadeInAnimationFinished.AddDynamic(this, &UMyGameInstance::OnGameOverOverlayFadeInAnimationFinished);
+		GameOverOverlayWidget->FadeOutAnimationFinished.AddDynamic(this, &UMyGameInstance::OnGameOverOverlayFadeOutAnimationFinished);
+	}
+	if (BlackScreenOverlayWidgetClass != nullptr)
+	{
+		BlackScreenOverlayWidget = CreateWidget<UWidgetLoadingOverlay>(this, BlackScreenOverlayWidgetClass, "BlackScreenOverlay");
+		BlackScreenOverlayWidget->FadeInAnimationFinished.AddDynamic(this, &UMyGameInstance::OnBlackScreenOverlayFadeInAnimationFinished);
+		BlackScreenOverlayWidget->FadeOutAnimationFinished.AddDynamic(this, &UMyGameInstance::OnBlackScreenOverlayFadeOutAnimationFinished);
 	}
 }
 
 void UMyGameInstance::SaveSettings()
 {
+	check(Settings != nullptr);
+
+	Settings->MusicVolume = GetMusicVolume();
+	Settings->GameSoundVolume = GetGameSoundVolume();
+
 	Settings->SaveConfig();
 }
 
 void UMyGameInstance::LoadSettings()
 {
+	check(Settings != nullptr);
+
 	Settings->LoadConfig();
+
+	SetMusicVolume(Settings->MusicVolume);
+	SetGameSoundVolume(Settings->GameSoundVolume);
 }
 
 UMyGameInstance* UMyGameInstance::GetMyGameInstance(const UObject* WorldContextObject)
@@ -59,7 +82,7 @@ void UMyGameInstance::SetMusicVolume(float Volume)
 	checkf(Volume >= 0 && Volume <= 1, TEXT("Volume must be in range [0, 1]"));
 	checkf(MusicSoundClass != nullptr, TEXT("MusicSoundClass should be specified"))
 	Settings->MusicVolume = Volume;
-	MusicSoundClass->Properties.Volume = Volume;UE_LOG(LogTemp, Warning, TEXT("SetMusicVolume"));
+	MusicSoundClass->Properties.Volume = Volume;
 }
 
 float UMyGameInstance::GetMusicVolume()
@@ -141,7 +164,7 @@ void UMyGameInstance::SetGameSoundVolume(float Volume)
 	checkf(Volume >= 0 && Volume <= 1, TEXT("Volume must be in range [0, 1]"));
 	checkf(GameSoundSoundClass != nullptr, TEXT("GameSoundSoundClass should be specified"))
 	Settings->GameSoundVolume = Volume;
-	GameSoundSoundClass->Properties.Volume = Volume; UE_LOG(LogTemp, Warning, TEXT("SetGameSoundVolume"));
+	GameSoundSoundClass->Properties.Volume = Volume;
 }
 
 float UMyGameInstance::GetGameSoundVolume()
@@ -152,6 +175,26 @@ float UMyGameInstance::GetGameSoundVolume()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void UMyGameInstance::PauseGame(bool Pause)
+{
+	if (Pause)
+	{
+		auto PlayerController = Cast<APlayerControllerBase>(
+			UGameplayStatics::GetActorOfClass(GetWorld(), APlayerControllerBase::StaticClass())
+		);
+		if (PlayerController == nullptr)
+		{
+			return;
+		}
+
+		GetWorld()->GetAuthGameMode()->SetPause(PlayerController);
+	}
+	else
+	{
+		GetWorld()->GetAuthGameMode()->ClearPause();
+	}
+}
+
 void UMyGameInstance::StartNewGame()
 {
 	CurrentSave = InitNewGameSaveObject();
@@ -161,16 +204,10 @@ void UMyGameInstance::StartNewGame()
 		return;
 	}
 	StopMusic();
-	LoadGameImplNewGame = true;
-	LoadGameImplSendPlayer = false;
+	LoadingOverlayCallbackType = ELoadingOverlayCallbackType::NewGame;
 	LoadingOverlayWidget->AddToViewport();
+	LoadingOverlayWidget->StopAllAnimations();
 	LoadingOverlayWidget->PlayFadeInAnimation();
-}
-
-void UMyGameInstance::QuitToMainMenu()
-{
-	CurrentSave = nullptr;
-	UGameplayStatics::OpenLevel(GetWorld(), MainMenuLevelName);
 }
 
 TArray<FDateTimeAndString> UMyGameInstance::GetAllSaveGameSlots()
@@ -265,7 +302,7 @@ void UMyGameInstance::LoadGame(const FString& Slot)
 {
 	/* Loading process:
 	*  - UMyGameInstance::LoadGame (we're here)
-	*  - LoadingOverlayWidget->FadeInAnimationFinished => UMyGameInstance::LoadGameImpl (start actual loading)
+	*  - LoadingOverlayWidget->FadeInAnimationFinished => UMyGameInstance::OnLoadingOverlayFadeInAnimationFinished (start actual loading)
 	*  - AsyncLoadGameFromSlot finished => UMyGameInstance::OnGameLoadedNonMulticastTriggered (start loading level)
 	*  - level is loaded => AMyGameModeBase::InitGame => UMyGameInstance::OnLevelLoaded
 	*/
@@ -276,38 +313,14 @@ void UMyGameInstance::LoadGame(const FString& Slot)
 	check(LoadGameImplSlot.IsEmpty());
 	StopMusic();
 	LoadGameImplSlot = Slot;
-	LoadGameImplNewGame = false;
-	LoadGameImplSendPlayer = false;
+	LoadingOverlayCallbackType = ELoadingOverlayCallbackType::LoadGame;
 	if (LoadingOverlayWidget->GetParent() == nullptr)
 	{
 		LoadingOverlayWidget->AddToViewport();
 	}
+	PauseGame(true);
 	LoadingOverlayWidget->StopAllAnimations();
 	LoadingOverlayWidget->PlayFadeInAnimation();
-}
-
-void UMyGameInstance::LoadGameImpl()
-{
-	if (LoadGameImplNewGame)
-	{
-		UGameplayStatics::OpenLevel(GetWorld(), StartLevelName);
-		LoadingOverlayWidget->StopAllAnimations();
-		LoadingOverlayWidget->PlayFadeOutAnimation();
-	}
-	else if (LoadGameImplSendPlayer)
-	{
-		UGameplayStatics::OpenLevel(GetWorld(), CurrentSave->CurrentLevelName);
-	}
-	else
-	{
-		check(!LoadGameImplSlot.IsEmpty());
-		auto RealSlot = DecoratedSaveSlotName(LoadGameImplSlot);
-		LoadGameImplSlot.Empty();
-		OnLoadingGameStarted.Broadcast();
-		FAsyncLoadGameFromSlotDelegate OnGameLoadedNonMulticast;
-		OnGameLoadedNonMulticast.BindUObject(this, &UMyGameInstance::OnGameLoadedNonMulticastTriggered);
-		UGameplayStatics::AsyncLoadGameFromSlot(RealSlot, 0, OnGameLoadedNonMulticast);
-	}
 }
 
 void UMyGameInstance::OnLevelLoaded()
@@ -317,6 +330,7 @@ void UMyGameInstance::OnLevelLoaded()
 		// obviously it's a PIE session started in some level other than Main Menu
 		CurrentSave = InitNewGameSaveObject();
 		check(CurrentSave != nullptr);
+		CurrentSave->CurrentLevelName = FName(UGameplayStatics::GetCurrentLevelName(GetWorld()));
 		CurrentSave->Apply(GetWorld());
 		return;
 	}
@@ -330,7 +344,40 @@ void UMyGameInstance::OnLevelLoaded()
 		LoadingOverlayWidget->PlayFadeOutAnimation();
 	}
 
+	PauseGame(false);
+
 	OnLoadingGameFinished.Broadcast();
+}
+
+void UMyGameInstance::OnLoadingOverlayFadeInAnimationFinished()
+{
+	switch (LoadingOverlayCallbackType)
+	{
+	case ELoadingOverlayCallbackType::NewGame:
+	{
+		UGameplayStatics::OpenLevel(GetWorld(), StartLevelName);
+		break;
+	}
+	case ELoadingOverlayCallbackType::SendPlayerToAnotherLevel:
+	{
+		UGameplayStatics::OpenLevel(GetWorld(), CurrentSave->CurrentLevelName);
+		break;
+	}
+	case ELoadingOverlayCallbackType::LoadGame:
+	{
+		check(!LoadGameImplSlot.IsEmpty());
+		auto RealSlot = DecoratedSaveSlotName(LoadGameImplSlot);
+		LoadGameImplSlot.Empty();
+		OnLoadingGameStarted.Broadcast();
+		FAsyncLoadGameFromSlotDelegate OnGameLoadedNonMulticast;
+		OnGameLoadedNonMulticast.BindUObject(this, &UMyGameInstance::OnGameLoadedNonMulticastTriggered);
+		UGameplayStatics::AsyncLoadGameFromSlot(RealSlot, 0, OnGameLoadedNonMulticast);
+		break;
+	}
+	default:
+		check(false);
+		return;
+	}
 }
 
 void UMyGameInstance::OnLoadingOverlayFadeOutAnimationFinished()
@@ -338,6 +385,95 @@ void UMyGameInstance::OnLoadingOverlayFadeOutAnimationFinished()
 	if (LoadingOverlayWidget != nullptr)
 	{
 		LoadingOverlayWidget->RemoveFromViewport();
+	}
+}
+
+void UMyGameInstance::GameOver()
+{
+	PauseGame(true);
+	QuitToMainMenuImpl(true);
+}
+
+void UMyGameInstance::QuitToMainMenu()
+{
+	QuitToMainMenuImpl(false);
+}
+
+void UMyGameInstance::QuitToMainMenuImpl(bool showGameOverText)
+{
+	StopMusic();
+	if (showGameOverText)
+	{
+		MainMenuTransitionOverlayType = EMainMenuTransitionOverlayType::GameOver;
+		check(GameOverOverlayWidget != nullptr);
+		if (GameOverOverlayWidget->GetParent() == nullptr)
+		{
+			GameOverOverlayWidget->AddToViewport();
+		}
+		GameOverOverlayWidget->StopAllAnimations();
+		GameOverOverlayWidget->PlayFadeInAnimation();
+	}
+	else
+	{
+		MainMenuTransitionOverlayType = EMainMenuTransitionOverlayType::Regular;
+		check(BlackScreenOverlayWidget != nullptr);
+		if (BlackScreenOverlayWidget->GetParent() == nullptr)
+		{
+			BlackScreenOverlayWidget->AddToViewport();
+		}
+		BlackScreenOverlayWidget->StopAllAnimations();
+		BlackScreenOverlayWidget->PlayFadeInAnimation();
+	}
+}
+
+void UMyGameInstance::OnMainMenuLoaded()
+{
+	if (MainMenuTransitionOverlayType == EMainMenuTransitionOverlayType::GameOver)
+	{
+		if (GameOverOverlayWidget != nullptr)
+		{
+			GameOverOverlayWidget->AddToViewport();
+			GameOverOverlayWidget->StopAllAnimations();
+			GameOverOverlayWidget->PlayFadeOutAnimation();
+		}
+	}
+	else
+	{
+		if (BlackScreenOverlayWidget != nullptr)
+		{
+			BlackScreenOverlayWidget->AddToViewport();
+			BlackScreenOverlayWidget->StopAllAnimations();
+			BlackScreenOverlayWidget->PlayFadeOutAnimation();
+		}
+	}
+
+	PauseGame(false);
+}
+
+void UMyGameInstance::OnGameOverOverlayFadeInAnimationFinished()
+{
+	CurrentSave = nullptr;
+	UGameplayStatics::OpenLevel(GetWorld(), MainMenuLevelName);
+}
+
+void UMyGameInstance::OnGameOverOverlayFadeOutAnimationFinished()
+{
+	if (GameOverOverlayWidget != nullptr)
+	{
+		GameOverOverlayWidget->RemoveFromViewport();
+	}
+}
+
+void UMyGameInstance::OnBlackScreenOverlayFadeInAnimationFinished()
+{
+	OnGameOverOverlayFadeInAnimationFinished();
+}
+
+void UMyGameInstance::OnBlackScreenOverlayFadeOutAnimationFinished()
+{
+	if (BlackScreenOverlayWidget != nullptr)
+	{
+		BlackScreenOverlayWidget->RemoveFromViewport();
 	}
 }
 
@@ -440,13 +576,8 @@ void UMyGameInstance::SendPlayerToPlayerStart(FName LevelName, FName PlayerStart
 		return;
 	}
 
-	auto PlayerController = Cast<APlayerController>(Character->GetController());
-	if (PlayerController == nullptr)
-	{
-		return;
-	}
+	PauseGame(true);
 
-	GetWorld()->GetAuthGameMode()->SetPause(PlayerController);
 	LoadingOverlayWidget->AddToViewport();
 
 	RemoveTransformFromSaveGameForGlobalActor(Character->GetFName(), LevelName);
@@ -454,8 +585,8 @@ void UMyGameInstance::SendPlayerToPlayerStart(FName LevelName, FName PlayerStart
 	CurrentSave->Update(GetWorld());
 	CurrentSave->CurrentLevelName = LevelName;
 
-	LoadGameImplNewGame = false;
-	LoadGameImplSendPlayer = true;
+	LoadingOverlayCallbackType = ELoadingOverlayCallbackType::SendPlayerToAnotherLevel;
 
+	LoadingOverlayWidget->StopAllAnimations();
 	LoadingOverlayWidget->PlayFadeInAnimation();
 }
