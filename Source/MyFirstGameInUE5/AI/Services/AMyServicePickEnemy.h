@@ -22,4 +22,10 @@ protected:
 	/// </summary>
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI")
 	float DistanceToLoseNotPerceivedEnemy = 3500.f;
+
+	virtual void OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory) override;
+
+private:
+	void TellAlliesThatThereIsAnEnemy(class AAIControllerBase* Controller, AActor* Enemy) const;
+	void AskAlliesIfThereIsAnEnemy(class AAIControllerBase* Controller) const;
 };

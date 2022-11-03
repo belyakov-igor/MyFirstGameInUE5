@@ -35,6 +35,9 @@ public:
 	static UMyGameInstance* GetMyGameInstance(const UObject* WorldContextObject);
 
 // Music { ////////////////////////////////////////////////////////////////////////////////////////
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sound")
+	class USoundClass* MusicSoundClass = nullptr;
+
 	UFUNCTION(BlueprintCallable, Category = "Music")
 	void SetMusicVolume(float Volume);
 
@@ -42,28 +45,12 @@ public:
 	float GetMusicVolume();
 
 	UFUNCTION(BlueprintCallable, Category = "Music")
-	void PlayMusic(USoundBase* Sound);
-
-	// Play track and repeat it until StopMusic is called
-	UFUNCTION(BlueprintCallable, Category = "Music")
-	void PlayMusicInLoop(USoundBase* Sound);
-
-	UFUNCTION(BlueprintCallable, Category = "Music")
 	void StopMusic();
-
-	UFUNCTION(BlueprintCallable, Category = "Music")
-	void PauseMusic();
-
-	UFUNCTION(BlueprintCallable, Category = "Music")
-	void ResumeMusic();
 // } Music ////////////////////////////////////////////////////////////////////////////////////////
 
 // Game Sound { ///////////////////////////////////////////////////////////////////////////////////
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sound")
 	class USoundClass* GameSoundSoundClass = nullptr;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Sound")
-	class USoundClass* MusicSoundClass = nullptr;
 
 	UFUNCTION(BlueprintCallable, Category = "Sound")
 	void SetGameSoundVolume(float Volume);
@@ -96,6 +83,9 @@ public:
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Game")
 	TSubclassOf<class APlayerCharacter> PlayerCharacterClass;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Game")
+	class ALevelStateActor* GetLevelStateActor();
 
 	UFUNCTION(BlueprintCallable, Category = "Game")
 	void PauseGame(bool Pause);
@@ -147,11 +137,6 @@ public:
 // } Game /////////////////////////////////////////////////////////////////////////////////////////
 
 private:
-	UPROPERTY()
-	UAudioComponent* MusicComponent = nullptr;
-
-	FTimerHandle MusicTimerHandle = {};
-
 	FString DecoratedSaveSlotName(FString SaveSlotName);
 	FString NonDecoratedSaveSlotName(FString SaveSlotName);
 	inline static constexpr const char SaveSlotNameDecoration[] = "Save_";

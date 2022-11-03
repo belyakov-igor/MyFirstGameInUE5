@@ -1,5 +1,7 @@
 #include "AI/Components/AISpawnAndOrderComponent.h"
 
+#include "AI/Actors/AISpawnAndOrderActor.h"
+
 #include "Characters/AICharacter.h"
 #include "Controllers/AIControllerBase.h"
 #include "Global/Utilities/MyUtilities.h"
@@ -48,20 +50,24 @@ void UAISpawnAndOrderComponent::Spawn()
 		}
 	}
 
-	TArray<USceneComponent*> Children;
-	GetChildrenComponents(/*bIncludeAllDescendants*/ false, Children);
+	const auto Parent = Cast<AAISpawnAndOrderActor>(GetOwner());
+	checkf(Parent != nullptr, TEXT("Place this component only into AISpawnAndOrderActor."));
 	FMoveTargetSequenceTaskData MoveTargetSequenceTaskData;
-	MoveTargetSequenceTaskData.OrderMoveTagetSequence.Reserve(Children.Num());
-	for (auto& SceneComponent : Children)
+	MoveTargetSequenceTaskData.OrderMoveTagetSequence.Reserve(OrderMoveTargetNames.Num());
+	const auto& OrderMoveTargetsAvailable = Parent->GetOrderMoveTargets();
+	for (const auto Name : OrderMoveTargetNames)
 	{
-		if (auto MoveTargetComponent = Cast<UAIOrderMoveTargetComponent>(SceneComponent); MoveTargetComponent != nullptr)
-		{
-			MoveTargetSequenceTaskData.OrderMoveTagetSequence.Add(FMoveTargetData{
-				MoveTargetComponent->GetComponentLocation()
-				, MoveTargetComponent->GetComponentRotation()
-				, MoveTargetComponent->TimeToStayInPosition
-			});
-		}
+		auto OrderMoveTargetPtr = OrderMoveTargetsAvailable.Find(Name);
+		checkf(OrderMoveTargetPtr != nullptr, TEXT("There is no OrderMoveTarget with this name: %s"), *Name.ToString());
+		auto OrderMoveTarget = *OrderMoveTargetPtr;
+		check(OrderMoveTarget != nullptr);
+		MoveTargetSequenceTaskData.OrderMoveTagetSequence.Add(
+			FMoveTargetData{
+				OrderMoveTarget->GetComponentLocation()
+				, OrderMoveTarget->GetComponentRotation()
+				, OrderMoveTarget->TimeToStayInPosition
+			}
+		);
 	}
 	MoveTargetSequenceTaskData.FirstNonMandatoryOrderMoveTarget = FirstNonMandatoryOrderMoveTarget;
 	MoveTargetSequenceTaskData.bLoopTargetSequence = LoopTargetSequence;

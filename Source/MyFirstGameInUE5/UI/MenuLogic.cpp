@@ -61,7 +61,7 @@ void AMenuLogic::OpenUI()
 	if (auto PlayerController = UGameplayStatics::GetPlayerController(GetWorld(), 0); PlayerController != nullptr)
 	{
 		PlayerController->SetShowMouseCursor(true);
-		PlayerController->SetInputMode(FInputModeUIOnly());
+		PlayerController->SetInputMode(FInputModeGameAndUI());
 		GetWorld()->GetAuthGameMode()->SetPause(PlayerController);
 	}
 	ShowNextWidget(StartupWidgetKey);
@@ -76,6 +76,23 @@ void AMenuLogic::CloseUI()
 		PlayerController->SetShowMouseCursor(false);
 		PlayerController->SetInputMode(FInputModeGameOnly());
 		GetWorld()->GetAuthGameMode()->ClearPause();
+	}
+}
+
+bool AMenuLogic::IsLastWidget()
+{
+	return WidgetStack.Num() <= 1;
+}
+
+void AMenuLogic::RequestExit()
+{
+	if (IsLastWidget())
+	{
+		CloseUI();
+	}
+	else
+	{
+		ShowPreviousWidget();
 	}
 }
 

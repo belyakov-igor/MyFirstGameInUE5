@@ -40,7 +40,6 @@ void UEnvQueryTest_TraceToEnemyActor::RunTest(FEnvQueryInstance& QueryInstance) 
 		);
 		if (!bHit)
 		{
-			check(false);
 			It.SetScore(TestPurpose, FilterType, false, bWantsHit);
 			continue;
 		}

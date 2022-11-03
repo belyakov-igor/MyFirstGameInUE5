@@ -22,9 +22,14 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Signal")
 	FSignalMulticastDynamicSignature Triggered;
 
+	const TMap<FName, const class UAIOrderMoveTargetComponent*>& GetOrderMoveTargets();
+
 protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	USceneComponent* RootScene = nullptr;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
+	USceneComponent* OrderMoveTargetsRoot = nullptr;
 
 	virtual void BeginPlay() override;
 
@@ -36,7 +41,10 @@ protected:
 	bool bAlreadyTriggered = false;
 
 	virtual TArray<uint8> GetActorSaveData_Implementation() override;
-
 private:
 	void Spawn();
+
+	TMap<FName, const class UAIOrderMoveTargetComponent*> MakeOrderMoveTargetsMap() const;
+	bool OrderMoveTargetsIsValid = false;
+	TMap<FName, const class UAIOrderMoveTargetComponent*> OrderMoveTargets;
 };

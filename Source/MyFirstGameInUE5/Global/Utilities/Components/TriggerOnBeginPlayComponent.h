@@ -15,4 +15,7 @@ public:
 
 protected:
 	virtual void BeginPlay() override;
+
+	FTimerHandle TimerHandle;
+	void Trigger();
 };

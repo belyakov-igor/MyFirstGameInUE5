@@ -16,9 +16,9 @@ public:
 
 	void Crouch(bool Crouch);
 
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "AICharacter")
+	static bool IsThereAnyLivingAICharacter();
+
 protected:
 	virtual void Die() override;
-
-private:
-	bool IsThereAnotherLivingCharacterOfTheSameGroup() const;
 };

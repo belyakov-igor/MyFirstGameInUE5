@@ -6,8 +6,8 @@
 #include "UI/WidgetLoadingOverlay.h"
 #include "Characters/PlayerCharacter.h"
 #include "Controllers/PlayerControllerBase.h"
+#include "Global/LevelStateActor.h"
 
-#include "Components/AudioComponent.h"
 #include "GameFramework/GameUserSettings.h"
 #include "Sound/SoundClass.h"
 #include "GameFramework/PlayerStart.h"
@@ -74,8 +74,12 @@ void UMyGameInstance::LoadSettings()
 
 UMyGameInstance* UMyGameInstance::GetMyGameInstance(const UObject* WorldContextObject)
 {
-	return static_cast<UMyGameInstance*>(UGameplayStatics::GetGameInstance(WorldContextObject));
+	auto GameInstance = Cast<UMyGameInstance>(UGameplayStatics::GetGameInstance(WorldContextObject));
+	check(GameInstance != nullptr);
+	return GameInstance;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void UMyGameInstance::SetMusicVolume(float Volume)
 {
@@ -90,75 +94,6 @@ float UMyGameInstance::GetMusicVolume()
 	return Settings->MusicVolume;
 }
 
-void UMyGameInstance::PlayMusic(USoundBase* Sound)
-{
-	StopMusic();
-	if (auto soundWave = dynamic_cast<USoundWave*>(Sound); soundWave != nullptr)
-	{
-		soundWave->VirtualizationMode = EVirtualizationMode::PlayWhenSilent;
-	}
-	MusicComponent = UGameplayStatics::SpawnSound2D(
-		this
-		, Sound
-		, Settings->MusicVolume
-		, /*PitchMultiplier =*/ 1.f
-		, /*StartTime =*/ 0.f
-		, /*ConcurrencySettings* =*/ nullptr
-		, /*bPersistAcrossLevelTransition =*/ true
-		, /*bAutoDestroy =*/ false
-	);
-}
-
-void UMyGameInstance::PlayMusicInLoop(USoundBase* Sound)
-{
-	PlayMusic(Sound);
-	check(MusicComponent != nullptr);
-	GetTimerManager().SetTimer(
-		MusicTimerHandle
-		, [this]()
-		{
-			if (MusicComponent != nullptr)
-			{
-				MusicComponent->Play();
-			}
-		}
-		, /*inRate =*/ MusicComponent->GetSound()->GetDuration()
-		, /*InbLoop =*/ true
-	);
-}
-
-void UMyGameInstance::StopMusic()
-{
-	if (MusicComponent == nullptr)
-	{
-		return;
-	}
-	MusicComponent->Stop();
-	GetTimerManager().ClearTimer(MusicTimerHandle);
-	MusicComponent->MarkAsGarbage();
-	MusicComponent = nullptr;
-}
-
-void UMyGameInstance::PauseMusic()
-{
-	if (MusicComponent == nullptr)
-	{
-		return;
-	}
-	MusicComponent->SetPaused(true);
-	GetTimerManager().PauseTimer(MusicTimerHandle);
-}
-
-void UMyGameInstance::ResumeMusic()
-{
-	if (MusicComponent == nullptr)
-	{
-		return;
-	}
-	MusicComponent->SetPaused(false);
-	GetTimerManager().UnPauseTimer(MusicTimerHandle);
-}
-
 void UMyGameInstance::SetGameSoundVolume(float Volume)
 {
 	checkf(Volume >= 0 && Volume <= 1, TEXT("Volume must be in range [0, 1]"));
@@ -169,11 +104,24 @@ void UMyGameInstance::SetGameSoundVolume(float Volume)
 
 float UMyGameInstance::GetGameSoundVolume()
 {
-	checkf(GameSoundSoundClass != nullptr, TEXT("GameSoundSoundClass should be specified"))
 	return Settings->GameSoundVolume;
 }
 
+void UMyGameInstance::StopMusic()
+{
+	auto LevelState = GetLevelStateActor();
+	if (LevelState != nullptr)
+	{
+		LevelState->StopMusic();
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class ALevelStateActor* UMyGameInstance::GetLevelStateActor()
+{
+	return Cast<ALevelStateActor>(UGameplayStatics::GetActorOfClass(GetWorld(), ALevelStateActor::StaticClass()));
+}
 
 void UMyGameInstance::PauseGame(bool Pause)
 {
@@ -247,7 +195,11 @@ void UMyGameInstance::MakeQuickSave()
 
 void UMyGameInstance::MakeQuickLoad()
 {
-	LoadGame(QuickSaveSlotName);
+	auto Saves = GetAllSaveGameSlots();
+	if (Saves.ContainsByPredicate([this](const FDateTimeAndString& Data){ return Data.String == QuickSaveSlotName; }))
+	{
+		LoadGame(QuickSaveSlotName);
+	}
 }
 
 void UMyGameInstance::LoadLastSave()
@@ -576,6 +528,7 @@ void UMyGameInstance::SendPlayerToPlayerStart(FName LevelName, FName PlayerStart
 		return;
 	}
 
+	StopMusic();
 	PauseGame(true);
 
 	LoadingOverlayWidget->AddToViewport();

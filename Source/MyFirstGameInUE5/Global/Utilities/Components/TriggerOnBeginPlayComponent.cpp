@@ -6,6 +6,12 @@ void UTriggerOnBeginPlayComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	// need to postpone trigger so that triggerable's BeginPlay would be executed before it is triggered
+	GetWorld()->GetTimerManager().SetTimer(TimerHandle, this, &UTriggerOnBeginPlayComponent::Trigger, 0.1f);
+}
+
+void UTriggerOnBeginPlayComponent::Trigger()
+{
 	auto Triggerable = Cast<ITriggerable>(GetOwner());
 
 	if (Triggerable == nullptr)

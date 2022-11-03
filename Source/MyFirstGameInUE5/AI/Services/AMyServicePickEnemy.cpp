@@ -9,7 +9,21 @@
 
 UAMyServicePickEnemy::UAMyServicePickEnemy()
 {
+	bCreateNodeInstance = false;
+	bNotifyBecomeRelevant = true;
 	NodeName = "Find Enemy";
+}
+
+void UAMyServicePickEnemy::OnBecomeRelevant(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory)
+{
+	Super::OnBecomeRelevant(OwnerComp, NodeMemory);
+
+	const auto Controller = Cast<AAIControllerBase>(OwnerComp.GetAIOwner());
+	if (Controller == nullptr)
+	{
+		return;
+	}
+	AskAlliesIfThereIsAnEnemy(Controller);
 }
 
 void UAMyServicePickEnemy::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds)
@@ -31,6 +45,10 @@ void UAMyServicePickEnemy::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* No
 
 	auto Enemy = PerceptionComponent->GetEnemy();
 	auto BBEnemy = Cast<AActor>(Blackboard->GetValueAsObject(Controller->EnemyActorKeyName));
+	if (Cast<ACharacterBase>(BBEnemy) != nullptr && Cast<ACharacterBase>(BBEnemy)->IsDead())
+	{
+		BBEnemy = nullptr;
+	}
 	if (Enemy == nullptr)
 	{
 		Enemy = BBEnemy;
@@ -49,39 +67,85 @@ void UAMyServicePickEnemy::TickNode(UBehaviorTreeComponent& OwnerComp, uint8* No
 	}
 	Blackboard->SetValueAsObject(Controller->EnemyActorKeyName, Enemy);
 
-	// Tell allies that there is an enemy
 	if (BBEnemy == nullptr && Enemy != nullptr /*New enemy found?*/)
 	{
-		auto Pawn = Controller->GetPawn();
-		if (ensure(Pawn != nullptr))
-		{
-			auto MaxDistanceSquared = Controller->MaxDistanceToAllyToTellItAboutEnemy;
-			MaxDistanceSquared *= MaxDistanceSquared;
-			auto Location = Pawn->GetActorLocation();
+		TellAlliesThatThereIsAnEnemy(Controller, Enemy);
+	}
+}
 
-			TArray<AActor*> Actors;
-			UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAIControllerBase::StaticClass(), Actors);
-			for (auto Actor : Actors)
+void UAMyServicePickEnemy::TellAlliesThatThereIsAnEnemy(AAIControllerBase* Controller, AActor* Enemy) const
+{
+	auto Pawn = Controller->GetPawn();
+	if (Pawn == nullptr || Enemy == nullptr)
+	{
+		check(false);
+		return;
+	}
+	auto MaxDistanceSquared = Controller->MaxDistanceToAllyToTellItAboutEnemy;
+	MaxDistanceSquared *= MaxDistanceSquared;
+	auto Location = Pawn->GetActorLocation();
+
+	TArray<AActor*> Actors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAIControllerBase::StaticClass(), Actors);
+	for (auto Actor : Actors)
+	{
+		auto AIController = Cast<AAIControllerBase>(Actor);
+		check(AIController != nullptr);
+		if (AIController->GroupId != Controller->GroupId)
+		{
+			continue;
+		}
+		auto AICharacter = AIController->GetPawn();
+		if (
+			AICharacter != nullptr
+			&& (AICharacter->GetActorLocation() - Location).SquaredLength() < MaxDistanceSquared
+			)
+		{
+			auto AllyController = Cast<AAIControllerBase>(AICharacter->GetController());
+			auto AllyBlackboard = AllyController->GetBrainComponent()->GetBlackboardComponent();
+			if (AllyBlackboard->GetValueAsObject(AllyController->EnemyActorKeyName) == nullptr)
 			{
-				auto AIController = Cast<AAIControllerBase>(Actor);
-				check(AIController != nullptr);
-				if (AIController->GroupId != Controller->GroupId)
-				{
-					continue;
-				}
-				auto AICharacter = AIController->GetPawn();
-				if (
-					AICharacter != nullptr
-					&& (AICharacter->GetActorLocation() - Location).SquaredLength() < MaxDistanceSquared
-				)
-				{
-					auto AllyController = Cast<AAIControllerBase>(AICharacter->GetController());
-					auto AllyBlackboard = AllyController->GetBrainComponent()->GetBlackboardComponent();
-					if (AllyBlackboard->GetValueAsObject(AllyController->EnemyActorKeyName) == nullptr)
-					{
-						AllyBlackboard->SetValueAsObject(AllyController->EnemyActorKeyName, Enemy);
-					}
-				}
+				AllyBlackboard->SetValueAsObject(AllyController->EnemyActorKeyName, Enemy);
+			}
+		}
+	}
+}
+
+void UAMyServicePickEnemy::AskAlliesIfThereIsAnEnemy(AAIControllerBase* Controller) const
+{
+	auto Pawn = Controller->GetPawn();
+	const auto Blackboard = Controller->GetBrainComponent()->GetBlackboardComponent();
+	if (Pawn == nullptr || Blackboard == nullptr)
+	{
+		check(false);
+		return;
+	}
+	auto MaxDistanceSquared = Controller->MaxDistanceToAllyToTellItAboutEnemy;
+	MaxDistanceSquared *= MaxDistanceSquared;
+	auto Location = Pawn->GetActorLocation();
+
+	TArray<AActor*> Actors;
+	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAIControllerBase::StaticClass(), Actors);
+	for (auto Actor : Actors)
+	{
+		auto AIController = Cast<AAIControllerBase>(Actor);
+		check(AIController != nullptr);
+		if (AIController->GroupId != Controller->GroupId)
+		{
+			continue;
+		}
+		auto AICharacter = AIController->GetPawn();
+		if (
+			AICharacter != nullptr
+			&& (AICharacter->GetActorLocation() - Location).SquaredLength() < MaxDistanceSquared
+		)
+		{
+			auto AllyController = Cast<AAIControllerBase>(AICharacter->GetController());
+			auto AllyBlackboard = AllyController->GetBrainComponent()->GetBlackboardComponent();
+			if (auto Enemy = AllyBlackboard->GetValueAsObject(AllyController->EnemyActorKeyName); Enemy != nullptr)
+			{
+				Blackboard->SetValueAsObject(Controller->EnemyActorKeyName, Enemy);
+				return;
 			}
 		}
 	}

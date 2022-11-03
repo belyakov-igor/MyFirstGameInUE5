@@ -1,9 +1,11 @@
 #include "AICharacter.h"
 
-#include "Controllers/AIControllerBase.h"
 #include "Global/MyGameModeBase.h"
+#include "Global/MyGameInstance.h"
+#include "Global/LevelStateActor.h"
 
 #include "GameFramework/CharacterMovementComponent.h"
+#include "AIController.h"
 #include "BrainComponent.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -15,6 +17,9 @@ AAICharacter::AAICharacter()
 		Movement->bUseControllerDesiredRotation = true;
 		Movement->RotationRate = FRotator(0, 200, 0);
 		Movement->bUseRVOAvoidance = true;
+		Movement->AvoidanceWeight = 1.f;
+		Movement->SetGroupsToIgnore(0b10);
+		Movement->SetAvoidanceGroup(0b1);
 	}
 
 	Cravings.bWantsToAim = true;
@@ -24,7 +29,7 @@ void AAICharacter::Die()
 {
 	Super::Die();
 
-	auto AIController = Cast<AAIControllerBase>(Controller);
+	auto AIController = Cast<AAIController>(Controller);
 	if (AIController == nullptr || AIController->BrainComponent == nullptr)
 	{
 		return;
@@ -32,33 +37,30 @@ void AAICharacter::Die()
 
 	AIController->BrainComponent->Cleanup();
 
-	if (!IsThereAnotherLivingCharacterOfTheSameGroup())
+	if (auto Movement = GetCharacterMovement(); Movement != nullptr)
 	{
-		auto GameMode = GetWorld() != nullptr ? Cast<AMyGameModeBase>(GetWorld()->GetAuthGameMode()) : nullptr;
-		GameMode->LastAICharacterInGroupDied.Broadcast(AIController->GroupId);
+		Movement->SetAvoidanceGroup(0b10);
+	}
+
+	if (
+		auto LevelState = UMyGameInstance::GetMyGameInstance(GetWorld())->GetLevelStateActor();
+		LevelState != nullptr
+	)
+	{
+		LevelState->AICharacterDied.Broadcast();
 	}
 }
 
-bool AAICharacter::IsThereAnotherLivingCharacterOfTheSameGroup() const
+bool AAICharacter::IsThereAnyLivingAICharacter()
 {
-	auto AIController = Cast<AAIControllerBase>(Controller);
-	if (AIController == nullptr)
-	{
-		check(false);
-		return false;
-	}
-
+	auto World = GEngine->GameViewport->GetWorld();
 	TArray<AActor*> Actors;
-	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAIControllerBase::StaticClass(), Actors);
+	UGameplayStatics::GetAllActorsOfClass(World, StaticClass(), Actors);
 	for (auto Actor : Actors)
 	{
-		auto AnotherController = Cast<AAIControllerBase>(Actor);
 		if (
-			AnotherController != nullptr
-			&& Actor != AIController
-			&& AnotherController->GroupId == AIController->GroupId
-			&& Cast<AAICharacter>(AnotherController->GetPawn()) != nullptr
-			&& !Cast<AAICharacter>(AnotherController->GetPawn())->IsDead()
+			Cast<AAICharacter>(Actor) != nullptr
+			&& !Cast<AAICharacter>(Actor)->IsDead()
 		)
 		{
 			return true;

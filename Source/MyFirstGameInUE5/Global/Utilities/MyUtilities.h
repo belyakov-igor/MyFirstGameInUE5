@@ -16,14 +16,26 @@ DECLARE_DELEGATE_OneParam(FInt32Signature, int32);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FSignalMulticastDynamicSignature);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FIndexedSignalMulticastDynamicSignature, int32, Index);
 
+UENUM(BlueprintType)
+enum ESuccessEnum
+{
+	ESuccessEnum_Succeeded,
+	ESuccessEnum_Failed
+};
+
 UCLASS()
 class MYFIRSTGAMEINUE5_API UMyUtilities : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, Category = "General")
-	static void FindByValue(const TMap<FString, FString>& map, const FString& value, FString& ret, bool& succeeded);
+	UFUNCTION(BlueprintCallable, Category = "General", meta = (ExpandEnumAsExecs = "Success"))
+	static void FindByValue(
+		const TMap<FString, FString>& map
+		, const FString& value
+		, FString& ret
+		, TEnumAsByte<ESuccessEnum>& Success
+	);
 
 	template <typename T> inline
 	static T* FindNotifyByClass(class UAnimSequenceBase* Animation)

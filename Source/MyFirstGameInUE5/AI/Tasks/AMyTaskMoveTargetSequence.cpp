@@ -63,6 +63,8 @@ EBTNodeResult::Type UAMyTaskMoveTargetSequence::Move(UBehaviorTreeComponent& Own
 void UAMyTaskMoveTargetSequence::OnMoveCompleted(FAIRequestID RequestID, EPathFollowingResult::Type Result)
 {
 	check(Controller != nullptr);
+	Controller->ReceiveMoveCompleted.RemoveDynamic(this, &UAMyTaskMoveTargetSequence::OnMoveCompleted);
+
 	auto Tree = Cast<UBehaviorTreeComponent>(Controller->GetBrainComponent());
 	check(Tree != nullptr);
 	if (Result != EPathFollowingResult::Success)
@@ -74,7 +76,6 @@ void UAMyTaskMoveTargetSequence::OnMoveCompleted(FAIRequestID RequestID, EPathFo
 		return;
 	}
 
-	Controller->ReceiveMoveCompleted.RemoveDynamic(this, &UAMyTaskMoveTargetSequence::OnMoveCompleted);
 	auto& SequenceData = Controller->GetMoveTargetSequenceTaskData();
 	const auto& MoveTarget = SequenceData.OrderMoveTagetSequence[SequenceData.CurrentMoveTargetIndex];
 	++SequenceData.CurrentMoveTargetIndex;

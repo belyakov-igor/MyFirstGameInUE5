@@ -38,11 +38,15 @@ void APlayerControllerBase::SetupInputComponent()
     }
 
 #if WITH_EDITOR
-    InputComponent->BindAction("P_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::SwitchPause);
+    InputComponent->BindAction("P_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::SwitchPause)
+        .bExecuteWhenPaused = true;
     InputComponent->BindAction("O_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::QuickSave);
     InputComponent->BindAction("L_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::QuickLoad);
 #else
-    InputComponent->BindAction("Esc_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::SwitchPause);
+    PlayerInput->DebugExecBindings.Empty();
+
+    InputComponent->BindAction("Esc_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::SwitchPause)
+        .bExecuteWhenPaused = true;
     InputComponent->BindAction("F5_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::QuickSave);
     InputComponent->BindAction("F9_Pressed", EInputEvent::IE_Pressed, this, &APlayerControllerBase::QuickLoad);
 #endif
@@ -50,7 +54,7 @@ void APlayerControllerBase::SetupInputComponent()
 
 void APlayerControllerBase::SwitchPause()
 {
-    PauseMenuLogic->IsUIOpen() ? PauseMenuLogic->CloseUI() : PauseMenuLogic->OpenUI();
+    PauseMenuLogic->IsUIOpen() ? PauseMenuLogic->RequestExit() : PauseMenuLogic->OpenUI();
 }
 
 void APlayerControllerBase::QuickSave()

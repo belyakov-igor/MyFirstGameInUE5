@@ -53,6 +53,9 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn", meta = (ClampMin = 0.f))
 	TSubclassOf<class AAIControllerBase> ControllerClass = nullptr;
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Spawn")
+	TArray<FName> OrderMoveTargetNames;
+
 private:
 	FTimerHandle TimerHandle;
 	void Spawn();

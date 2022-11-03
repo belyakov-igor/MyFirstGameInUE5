@@ -6,11 +6,16 @@
 
 #include "Algo/Find.h"
 
-void UMyUtilities::FindByValue(const TMap<FString, FString>& map, const FString& value, FString& ret, bool& succeeded)
+void UMyUtilities::FindByValue(
+	const TMap<FString, FString>& map
+	, const FString& value
+	, FString& ret
+	, TEnumAsByte<ESuccessEnum>& Success
+)
 {
 	auto ptr = Algo::FindByPredicate(map, [&value](const auto& tuple){ return tuple.Value == value; });
-	succeeded = ptr != nullptr;
-	if (succeeded)
+	Success = ptr != nullptr ? ESuccessEnum_Succeeded : ESuccessEnum_Failed;
+	if (ptr != nullptr)
 	{
 		ret = ptr->Key;
 	}

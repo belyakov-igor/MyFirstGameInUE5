@@ -12,7 +12,7 @@ class MYFIRSTGAMEINUE5_API AMenuLogic : public AActor
 {
 	GENERATED_BODY()
 	
-public:	
+public:
 	AMenuLogic();
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
@@ -23,6 +23,12 @@ public:
 
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "UI")
 	bool IsUIOpen() const;
+
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "UI")
+	bool IsLastWidget();
+
+	UFUNCTION(BlueprintCallable, Category = "UI")
+	void RequestExit();
 
 	UFUNCTION(BlueprintCallable, Category = "UI")
 	void ShowNextWidget(TEnumAsByte<EMenuWidget> WidgetKey);
