@@ -36,7 +36,6 @@ EBTNodeResult::Type UAMyTaskTakeCover::ExecuteTask(UBehaviorTreeComponent& Owner
 	}
 
 	Controller->ReceiveMoveCompleted.AddDynamic(this, &UAMyTaskTakeCover::OnMoveCompleted);
-	auto Pos = Cover->GetActorLocation();
 	Controller->MoveToLocation(Cover->GetActorLocation());
 	Cover->SetIsOccupied(true);
 	return EBTNodeResult::InProgress;

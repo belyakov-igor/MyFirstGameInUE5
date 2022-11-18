@@ -14,13 +14,13 @@ struct FMoveTargetData
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY(SaveGame)
-	FVector Position;
+	FVector Position = FVector::ZeroVector;
 
 	UPROPERTY(SaveGame)
-	FRotator Rotation;
+	FRotator Rotation = FRotator::ZeroRotator;
 
 	UPROPERTY(SaveGame)
-	float TimeToStayInPosition;
+	float TimeToStayInPosition = 0.f;
 };
 
 USTRUCT()
