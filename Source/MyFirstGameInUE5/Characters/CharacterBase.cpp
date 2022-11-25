@@ -623,7 +623,7 @@ void ACharacterBase::TakeDamageCallback(FName BoneName, float Damage)
 	{
 		Damage *= HeadShotDamageMultiplier;
 	}
-	Damage -= Damage * ArmorDamageModifier;
+	Damage *= 1 - ArmorDamageModifier;
 	HealthComponent->Decrease(static_cast<int32>(Damage));
 }
 

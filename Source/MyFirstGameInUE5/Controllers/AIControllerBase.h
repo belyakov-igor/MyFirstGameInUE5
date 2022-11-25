@@ -114,7 +114,7 @@ public:
 	/** Guys with the same group id will share information about enemy between them.
 	*   AMyGameModeBase::LastAICharacterInGroupDied is broadcasted when last character in group dies,
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AI", meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, SaveGame, Category = "AI", meta = (ClampMin = 0))
 	int32 GroupId = 0;
 
 	void SetOrderMoveTagetSequence(FMoveTargetSequenceTaskData MoveTargetSequenceTaskData);

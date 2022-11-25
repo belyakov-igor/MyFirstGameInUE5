@@ -89,17 +89,22 @@ void UAMyServicePickEnemy::TellAlliesThatThereIsAnEnemy(AAIControllerBase* Contr
 	UGameplayStatics::GetAllActorsOfClass(GetWorld(), AAIControllerBase::StaticClass(), Actors);
 	for (auto Actor : Actors)
 	{
+		if (Actor == Controller)
+		{
+			continue;
+		}
 		auto AIController = Cast<AAIControllerBase>(Actor);
 		check(AIController != nullptr);
 		if (AIController->GroupId != Controller->GroupId)
 		{
 			continue;
 		}
-		auto AICharacter = AIController->GetPawn();
+		auto AICharacter = Cast<ACharacterBase>(AIController->GetPawn());
 		if (
 			AICharacter != nullptr
+			&& !AICharacter->IsDead()
 			&& (AICharacter->GetActorLocation() - Location).SquaredLength() < MaxDistanceSquared
-			)
+		)
 		{
 			auto AllyController = Cast<AAIControllerBase>(AICharacter->GetController());
 			auto AllyBlackboard = AllyController->GetBrainComponent()->GetBlackboardComponent();
